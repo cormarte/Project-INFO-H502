@@ -18,12 +18,12 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MeshFilesReader.cpp">
+    <ClCompile Include="MeshFileReader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MeshFilesReader.h">
+    <ClInclude Include="MeshFileReader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
