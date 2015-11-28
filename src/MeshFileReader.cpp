@@ -29,7 +29,7 @@ MeshFileReader* MeshFileReader::getInstance() {
 	return instance;
 }
 
-void MeshFileReader::readFile(const char* path, vector<vec3> &vertices) {
+void MeshFileReader::readFile(char* path, vector<vec3> &vertices, vector<vec3> &normals, vector<vec2> &textureCoordinates) {
 
 	int numberOfVertices;
 	int numberOfFaces;
@@ -67,9 +67,6 @@ void MeshFileReader::readFile(const char* path, vector<vec3> &vertices) {
 		result = fscanf(file, "%s", buffer);
 	}
 
-	cout << numberOfVertices << endl;
-	cout << numberOfFaces << endl;
-
 	for (int i = 0; i < numberOfVertices; i++) {
 	
 		vec3 vertex;
@@ -90,6 +87,12 @@ void MeshFileReader::readFile(const char* path, vector<vec3> &vertices) {
 		vertices.push_back(vertices_tmp[a]);
 		vertices.push_back(vertices_tmp[b]);
 		vertices.push_back(vertices_tmp[c]);
+		normals.push_back(normals_tmp[a]);
+		normals.push_back(normals_tmp[b]);
+		normals.push_back(normals_tmp[c]);
+		textureCoordinates.push_back(textureCoordinates_tmp[a]);
+		textureCoordinates.push_back(textureCoordinates_tmp[b]);
+		textureCoordinates.push_back(textureCoordinates_tmp[c]);
 	}
 	
 
@@ -124,7 +127,7 @@ void MeshFileReader::readFile(const char* path, vector<vec3> &vertices) {
 	while (1);*/
 }
 
-void MeshFileReader::readFile(const char* path, vector<vec3> &vertices, vector<vec2> &uvs, vector<vec3> &normals) {
+/*void MeshFileReader::readFile(const char* path, vector<vec3> &vertices, vector<vec2> &uvs, vector<vec3> &normals) {
 
 	vector<unsigned int> vertexIndices, uvIndices, normalIndices;
 	vector<vec3> temp_vertices;
@@ -189,9 +192,9 @@ void MeshFileReader::readFile(const char* path, vector<vec3> &vertices, vector<v
 			uvIndices.push_back(uvIndex[0]);
 			uvIndices.push_back(uvIndex[1]);
 			uvIndices.push_back(uvIndex[2]);
-			/*normalIndices.push_back(normalIndex[0]);
-			normalIndices.push_back(normalIndex[1]);
-			normalIndices.push_back(normalIndex[2]);*/
+			//normalIndices.push_back(normalIndex[0]);
+			//normalIndices.push_back(normalIndex[1]);
+			//normalIndices.push_back(normalIndex[2]);
 		}
 
 		for (unsigned int i = 0; i < vertexIndices.size(); i++) {
@@ -257,4 +260,4 @@ void MeshFileReader::readFile(const char* path, vector<vec4>& vertices, vector<v
 		cout << a << ", " << b << ", " << c << endl;
 	}
 
-}
+}*/
