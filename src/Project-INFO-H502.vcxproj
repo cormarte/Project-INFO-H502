@@ -98,15 +98,15 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\libs\glew-1.13.0\include;..\libs\glm-0.9.7.1;..\libs\glut-3.7\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\libs\freeimage-3.15.3\include;..\libs\glew-1.13.0\include;..\libs\glm-0.9.7.1\src;..\libs\glut-3.7\include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>..\libs\glew-1.13.0\lib\Release\Win32;..\libs\glut-3.7\lib\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>glew32.lib;glu32.lib;glut32.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\libs\freeimage-3.15.3\lib\;..\libs\glew-1.13.0\lib\;..\libs\glut-3.7\lib\</AdditionalLibraryDirectories>
+      <AdditionalDependencies>FreeImage.lib;glew32.lib;glu32.lib;glut32.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
   </ItemDefinitionGroup>
@@ -126,10 +126,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MeshFileReader.cpp" />
+    <ClCompile Include="ModelReader.cpp" />
+    <ClCompile Include="TextureReader.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MeshFileReader.h" />
+    <ClInclude Include="ModelReader.h" />
+    <ClInclude Include="TextureReader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
