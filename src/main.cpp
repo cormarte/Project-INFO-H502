@@ -1,9 +1,11 @@
+#define _USE_MATH_DEFINES
 #include <windows.h>
 #include <glew.h>
 #include <gl\gl.h>
 #include <gl\glu.h>
 #include <glut.h>
 #include <iostream>
+#include <math.h>
 #include "ModelReader.h"
 #include "TextureReader.h"
 
@@ -11,15 +13,53 @@ using namespace std;
 
 static int g_window;
 
-vector<vec3> normals;
-vector<vec2> textureCoordinates;
-vector<vec3> vertices;
+vector<vec3> babyNormals;
+vector<vec2> babyTextureCoordinates;
+vector<vec3> babyVertices;
+
+vector<vec3> cylinderNormals;
+vector<vec2> cylinderTextureCoordinates;
+vector<vec3> cylinderVertices;
 
 GLuint textureID;
 
-/*int lookAt[9] = {-5, -3, 6, 3, 2, 3, 5, -3, 10};
-int increment = 1;*/
-int angle[3] = {0, 0, 0};
+int angle[3] = {-90, 0, 0};
+
+void createCylinder(int resolution) {
+
+	for (int i = 0; i <= resolution; i++) {
+
+		float theta = (float)i*((M_PI) / (float)resolution);
+
+		vec3 upperNormal;
+		upperNormal.x = cosf(theta+90);
+		upperNormal.y = 0.0f;
+		upperNormal.z = -sinf(theta);
+		cylinderNormals.push_back(upperNormal);
+
+		vec2 upperTextureCoordinate;
+		upperTextureCoordinate.x = (float)i*(1.0f/resolution);
+		upperTextureCoordinate.y = 1.0f;
+		cylinderTextureCoordinates.push_back(upperTextureCoordinate);
+
+		vec2 lowerTextureCoordinate;
+		lowerTextureCoordinate.x = (float)i*(1.0f / resolution);
+		lowerTextureCoordinate.y = 0.0f;
+		cylinderTextureCoordinates.push_back(lowerTextureCoordinate);
+
+		vec3 upperVertex;
+		upperVertex.x = cosf(theta);
+		upperVertex.y = 1.0f;
+		upperVertex.z = -sinf(theta);
+		cylinderVertices.push_back(upperVertex);
+
+		vec3 lowerVertex;
+		lowerVertex.x = cosf(theta);
+		lowerVertex.y = -1.0f;
+		lowerVertex.z = -sinf(theta);
+		cylinderVertices.push_back(lowerVertex);
+	}
+}
 
 void display() {
 
@@ -30,11 +70,10 @@ void display() {
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	gluLookAt(-5, 0, 0, 0, 0, 0, 0, 0, 1);
-	//gluLookAt(lookAt[0], lookAt[1], lookAt[2], lookAt[3], lookAt[4], lookAt[5], lookAt[6], lookAt[7], lookAt[8]);
-	//cout << lookAt[0] << ", " << lookAt[1] << ", " << lookAt[2] << ", " << lookAt[3] << ", " << lookAt[4] << ", " << lookAt[5] << ", " << lookAt[6] << ", " << lookAt[7] << ", " << lookAt[8] << endl;
 	
 	//Axis scaling
-	glScalef(0.5, 0.5, 0.5);
+	glPushMatrix();
+	glScalef(0.4, 0.4, 0.4);
 	glRotatef(angle[0], 1, 0, 0);
 	glRotatef(angle[1], 0, 1, 0);
 	glRotatef(angle[2], 0, 0, 1);
@@ -42,22 +81,37 @@ void display() {
 
 	//Baby drawing
 	glBegin(GL_TRIANGLES);
+	glBindTexture(GL_TEXTURE_2D, 5);
+	glColor3f(0.85, 0.75, 0.75);
 
-	//glColor3f(0.9, 0.6, 0.6);
+	for (int i = 0; i != babyVertices.size(); i++) {
 
-	for (int i = 0; i != vertices.size(); i++) {
-
-		vec2 textureCoordinate = textureCoordinates.at(i);
-		vec3 vertex = vertices.at(i);
-		glTexCoord2f(textureCoordinate.x, textureCoordinate.y);  glVertex3f(vertex.x, vertex.y, vertex.z);
+		vec2 textureCoordinate = babyTextureCoordinates.at(i);
+		vec3 vertex = babyVertices.at(i);
+		//glTexCoord2f(textureCoordinate.x, textureCoordinate.y);  
+		glVertex3f(vertex.x, vertex.y, vertex.z);
 	}
 
 	glEnd();
 
+	//Axis scaling
+	glPopMatrix();
+	glScalef(1.5, 2.0, 1.5);
+
 	//Cylinder drawing
-	/*glBindTexture(GL_TEXTURE_2D, textureID);
-	glBegin(GL_TRIANGLES);
-	glEnd();*/
+	glBegin(GL_TRIANGLE_STRIP);
+	glColor3f(1.0, 1.0, 1.0);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	//glColor3f(1.0, 0.75, 0.75);
+
+	for (int i = 0; i != cylinderVertices.size(); i++) {
+
+		vec2 textureCoordinate = cylinderTextureCoordinates.at(i);
+		vec3 vertex = cylinderVertices.at(i);
+		glTexCoord2f(textureCoordinate.x, textureCoordinate.y); glVertex3f(vertex.x, vertex.y, vertex.z);
+	}
+
+	glEnd();
 
 	glFlush();
 }
@@ -65,7 +119,7 @@ void display() {
 void init()
 {
 	//Background colour definition
-	glClearColor(0.98, 0.88, 0.88, 1.0);
+	glClearColor(1.0, 0.85, 0.85, 1.0);
 
 	//Shading mode definition
 	glShadeModel(GL_SMOOTH);
@@ -85,7 +139,7 @@ void init()
 	glEnable(GL_TEXTURE_2D);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glGenTextures(1, &textureID);
-	glBindTexture(GL_TEXTURE_2D, textureID);
+	//glBindTexture(GL_TEXTURE_2D, textureID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -93,42 +147,42 @@ void init()
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
 
 	//Baby model loading
-	ModelReader::getInstance()->readFile("..//data//baby_original_triangles.ply", vertices, normals, textureCoordinates);
+	ModelReader::getInstance()->readFile("..//data//baby_original_triangles.ply", babyVertices, babyNormals, babyTextureCoordinates);
+
+	//Cylinder creation
+	createCylinder(50);
 }
 
 void keyboard(unsigned char key, int x, int y)
 {
 	switch (key) {
 	
-	case '2':
-		angle[1] -= 5;
+	case '1':
+		angle[0] -= 5;
 		break;
 
-	case '8':
-		angle[1] += 5;
+	case '3':
+		angle[0] += 5;
 		break;
 
 	case '4':
-		angle[2] -= 5;
+		angle[1] -= 5;
 		break;
 
 	case '6':
+		angle[1] += 5;
+		break;
+
+	case '7':
+		angle[2] -= 5;
+		break;
+
+	case '9':
 		angle[2] += 5;
 		break;
 	}
 
 	display();
-
-	/*if (key == '0') {
-		
-		increment = -increment;
-	}
-
-	else if (key >= '1' && key <= '9') {
-		
-		lookAt[(int)(key - 49)] += increment;
-		display();
-	}*/
 }
 
 void reshape(int w, int h) {
