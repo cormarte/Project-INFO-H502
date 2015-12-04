@@ -21,7 +21,7 @@ TextureReader* TextureReader::getInstance() {
 	return instance;
 }
 
-GLubyte* TextureReader::readFile(char* path, int &imageWidth, int &imageHeight) {
+GLubyte* TextureReader::readFile(const char* path, int &imageWidth, int &imageHeight) {
 
 	FREE_IMAGE_FORMAT format = FreeImage_GetFileType(path, 0);
 	FIBITMAP* image_tmp = FreeImage_Load(format, path);

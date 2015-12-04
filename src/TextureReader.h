@@ -9,7 +9,7 @@ public:
 
 	static TextureReader* getInstance();
 
-	GLubyte* readFile(char* path, int &imageWidth, int &imageHeight);
+	GLubyte* readFile(const char* path, int &imageWidth, int &imageHeight);
 
 private:
 
