@@ -15,6 +15,11 @@ using namespace std;
 
 static int g_window;
 
+GLuint vertexShader, fragmentShader, shaderProgram;
+
+GLuint textureIDs[2];
+const char* paths[2] = { "..//data//baby_texture.jpg", "..//data//baby_bump.jpg" };
+
 vector<vec3> babyNormals;
 vector<vec2> babyTextureCoordinates;
 vector<vec3> babyVertices;
@@ -22,9 +27,6 @@ vector<vec3> babyVertices;
 vector<vec3> cylinderNormals;
 vector<vec2> cylinderTextureCoordinates;
 vector<vec3> cylinderVertices;
-
-GLuint textureIDs[2];
-const char* paths[2] = {"..//data//baby_texture.jpg", "..//data//baby_bump.jpg"};
 
 int angle[3] = {-90, 0, 0};
 
@@ -123,6 +125,9 @@ void display() {
 
 void init()
 {
+	//Glew initialization
+	glewInit();
+
 	//Background colour definition
 	glClearColor(1.0, 1.0, 1.0, 1.0);
 
@@ -136,6 +141,11 @@ void init()
 
 	//Z-buffer activation
 	glEnable(GL_DEPTH_TEST);
+
+	//Shaders
+	/*vertexShader = initshaders(GL_VERTEX_SHADER, "shader.vp");
+	fragmentShader = initshaders(GL_FRAGMENT_SHADER, "shader.fp");
+	shaderProgram = initprogram(vertexShader, fragmentShader);*/
 
 	//Texture loading
 	glEnable(GL_TEXTURE_2D);
