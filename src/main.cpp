@@ -9,6 +9,8 @@
 #include "ModelReader.h"
 #include "TextureReader.h"
 
+#include <FreeImage.h>
+
 using namespace std;
 
 static int g_window;
@@ -21,7 +23,8 @@ vector<vec3> cylinderNormals;
 vector<vec2> cylinderTextureCoordinates;
 vector<vec3> cylinderVertices;
 
-GLuint textureID;
+GLuint textureIDs[2];
+const char* paths[2] = {"..//data//baby_texture.jpg", "..//data//baby_bump.jpg"};
 
 int angle[3] = {-90, 0, 0};
 
@@ -32,7 +35,7 @@ void createCylinder(int resolution) {
 		float theta = (float)i*((M_PI) / (float)resolution);
 
 		vec3 upperNormal;
-		upperNormal.x = cosf(theta+90);
+		upperNormal.x = cosf(theta);
 		upperNormal.y = 0.0f;
 		upperNormal.z = -sinf(theta);
 		cylinderNormals.push_back(upperNormal);
@@ -80,9 +83,9 @@ void display() {
 	glTranslatef(0, -0.5, -3.5);
 
 	//Baby drawing
+	glDisable(GL_TEXTURE_2D);
+	glColor3ub(254, 195, 172);
 	glBegin(GL_TRIANGLES);
-	glBindTexture(GL_TEXTURE_2D, 5);
-	glColor3f(0.85, 0.75, 0.75);
 
 	for (int i = 0; i != babyVertices.size(); i++) {
 
@@ -97,21 +100,23 @@ void display() {
 	//Axis scaling
 	glPopMatrix();
 	glScalef(1.5, 2.0, 1.5);
-
+	
 	//Cylinder drawing
-	glBegin(GL_TRIANGLE_STRIP);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, textureIDs[0]);
 	glColor3f(1.0, 1.0, 1.0);
-	glBindTexture(GL_TEXTURE_2D, textureID);
-	//glColor3f(1.0, 0.75, 0.75);
-
+	glBegin(GL_TRIANGLE_STRIP);
+	
 	for (int i = 0; i != cylinderVertices.size(); i++) {
 
 		vec2 textureCoordinate = cylinderTextureCoordinates.at(i);
 		vec3 vertex = cylinderVertices.at(i);
-		glTexCoord2f(textureCoordinate.x, textureCoordinate.y); glVertex3f(vertex.x, vertex.y, vertex.z);
+		glTexCoord2f(textureCoordinate.x, textureCoordinate.y);
+		glVertex3f(vertex.x, vertex.y, vertex.z);
 	}
 
 	glEnd();
+	
 
 	glFlush();
 }
@@ -119,7 +124,7 @@ void display() {
 void init()
 {
 	//Background colour definition
-	glClearColor(1.0, 0.85, 0.85, 1.0);
+	glClearColor(1.0, 1.0, 1.0, 1.0);
 
 	//Shading mode definition
 	glShadeModel(GL_SMOOTH);
@@ -133,18 +138,24 @@ void init()
 	glEnable(GL_DEPTH_TEST);
 
 	//Texture loading
-	int imageWidth, imageHeight;
-	GLubyte* texture = TextureReader::getInstance()->readFile("..//data//baby_texture.jpg", imageWidth, imageHeight);
-
 	glEnable(GL_TEXTURE_2D);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glGenTextures(1, &textureID);
-	//glBindTexture(GL_TEXTURE_2D, textureID);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+	glGenTextures(2, textureIDs);
+	
+	for (int i = 0; i != 2; i++) {
+
+		int width, height;
+		GLubyte* texture = TextureReader::getInstance()->readFile(paths[i], width, height);
+
+		glBindTexture(GL_TEXTURE_2D, textureIDs[i]);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+
+		delete texture;
+	}
 
 	//Baby model loading
 	ModelReader::getInstance()->readFile("..//data//baby_original_triangles.ply", babyVertices, babyNormals, babyTextureCoordinates);
