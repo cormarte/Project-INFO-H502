@@ -48,6 +48,9 @@ int uterusAngles[3] = {0, 0, 0};
 //Zoom
 float zoomFactor = 1;
 
+//Perspective
+int perspetive = 70;
+
 void createCylinder(int resolution) {
 
 	for (int i = 0; i <= resolution; i++) {
@@ -89,6 +92,11 @@ void display() {
 
 	//Colour and Z-buffer clearing
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//Projection
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(perspetive, (1.0*glutGet(GLUT_WINDOW_WIDTH)) / glutGet(GLUT_WINDOW_HEIGHT), 1, 1000);
 
 	//Camera positionning
 	glMatrixMode(GL_MODELVIEW);
@@ -342,6 +350,14 @@ void keyboard(unsigned char key, int x, int y) {
 
 	case 'x':
 		zoomFactor *= 1.1;
+		break;
+
+	case 'c':
+		perspetive -= 1;
+		break;
+
+	case 'v':
+		perspetive += 1;
 		break;
 	}
 
