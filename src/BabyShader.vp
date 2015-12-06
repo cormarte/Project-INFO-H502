@@ -1,0 +1,10 @@
+varying vec3 normal;
+
+void main() {
+
+	//Normal computation
+	normal = gl_NormalMatrix * gl_Normal;
+
+	//Current vertex position
+	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+}

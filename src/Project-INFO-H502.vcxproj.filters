@@ -24,6 +24,9 @@
     <ClCompile Include="TextureReader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Shaders.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TextureReader.h">
@@ -32,5 +35,22 @@
     <ClInclude Include="ModelReader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BabyShader.fp">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="BabyShader.vp">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="UterusShader.fp">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="UterusShader.vp">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

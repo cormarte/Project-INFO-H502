@@ -127,11 +127,19 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ModelReader.cpp" />
+    <ClCompile Include="Shaders.cpp" />
     <ClCompile Include="TextureReader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ModelReader.h" />
+    <ClInclude Include="Shaders.h" />
     <ClInclude Include="TextureReader.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BabyShader.fp" />
+    <None Include="BabyShader.vp" />
+    <None Include="UterusShader.fp" />
+    <None Include="UterusShader.vp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
