@@ -45,6 +45,9 @@ float uterusAmbient_GLSL, babyAmbient_GLSL;
 int babyAngles[3] = {0, 0, 0};
 int uterusAngles[3] = {0, 0, 0};
 
+//Zoom
+float zoomFactor = 1;
+
 void createCylinder(int resolution) {
 
 	for (int i = 0; i <= resolution; i++) {
@@ -90,7 +93,7 @@ void display() {
 	//Camera positionning
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	gluLookAt(-40, 0, 0, 0, 0, 0, 0, 0, 1);
+	gluLookAt(-40*zoomFactor, 0, 0, 0, 0, 0, 0, 0, 1);
 	
 	//Axis scaling
 	glRotatef(uterusAngles[0], 1, 0, 0);
@@ -331,6 +334,14 @@ void keyboard(unsigned char key, int x, int y) {
 
 	case 'h':
 		uterusAngles[2] += 5;
+		break;
+
+	case 'w':
+		zoomFactor /= 1.1;
+		break;
+
+	case 'x':
+		zoomFactor *= 1.1;
 		break;
 	}
 
