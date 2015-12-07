@@ -44,12 +44,13 @@ float uterusAmbient_GLSL, babyAmbient_GLSL;
 //Angles
 int babyAngles[3] = {0, 0, 0};
 int uterusAngles[3] = {0, 0, 0};
+int bezierAngle = 0;
 
 //Zoom
 float zoomFactor = 1;
 
 //Perspective
-int perspetive = 70;
+int fovy = 70;
 
 void createCylinder(int resolution) {
 
@@ -96,7 +97,7 @@ void display() {
 	//Projection
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(perspetive, (1.0*glutGet(GLUT_WINDOW_WIDTH)) / glutGet(GLUT_WINDOW_HEIGHT), 1, 1000);
+	gluPerspective(fovy, (1.0*glutGet(GLUT_WINDOW_WIDTH)) / glutGet(GLUT_WINDOW_HEIGHT), 1, 1000);
 
 	//Camera positionning
 	glMatrixMode(GL_MODELVIEW);
@@ -220,7 +221,7 @@ void init()
 	//Projection definition
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(70, (1.0*glutGet(GLUT_WINDOW_WIDTH))/glutGet(GLUT_WINDOW_HEIGHT), 1, 1000);
+	gluPerspective(fovy, (1.0*glutGet(GLUT_WINDOW_WIDTH))/glutGet(GLUT_WINDOW_HEIGHT), 1, 1000);
 
 	//Z-buffer activation
 	glEnable(GL_DEPTH_TEST);
@@ -253,8 +254,8 @@ void init()
 
 	//Bezier initialization
 	bezierPoints.push_back(vec3(-1.0, 0.0, 0.0));
-	bezierPoints.push_back(vec3(-1.1, 0.0, 1.3333));
-	bezierPoints.push_back(vec3(0.9, 0.0, 1.3333));
+	bezierPoints.push_back(vec3(-1.0, 0.0, 1.3333));
+	bezierPoints.push_back(vec3(1.0, 0.0, 1.3333));
 	bezierPoints.push_back(vec3(1.0, 0.0, 0.0));
 
 	//Uterus Shader
@@ -353,11 +354,21 @@ void keyboard(unsigned char key, int x, int y) {
 		break;
 
 	case 'c':
-		perspetive -= 1;
+		fovy -= 1;
 		break;
 
 	case 'v':
-		perspetive += 1;
+		fovy += 1;
+		break;
+
+	case 'b':
+		bezierPoints[0] += vec3(0.05, 0, 0.05);
+		//bezierPoints[1] -= vec3(0.01, 0, 0.01);
+		break;
+
+	case 'n':
+		bezierPoints[0] -= vec3(0.05, 0, 0.05);
+		//bezierPoints[1] += vec3(0.01, 0, 0.01);
 		break;
 	}
 
