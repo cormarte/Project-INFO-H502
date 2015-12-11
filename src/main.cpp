@@ -46,13 +46,13 @@ float babyAngles[3] = {0, 0, 0};
 float uterusAngles[3] = {0, 0, 0};
 
 //Translation
-float babyTranslation[3] = {0, 0, 0};
+float babyTranslations[3] = {0, 0, 0};
 
 //Zoom
 float zoomFactor = 1.25;
 
 //Perspective
-int fovy = 70;
+float fovy = 70;
 
 //Animation
 bool animation = false;
@@ -119,7 +119,7 @@ void display() {
 	glRotatef(babyAngles[0], 1, 0, 0);
 	glRotatef(babyAngles[1], 0, 1, 0);
 	glRotatef(babyAngles[2], 0, 0, 1);
-	glTranslatef(0.0, 0.0, -5.0+babyTranslation[2]);
+	glTranslatef(0.0, 0.0, -5.0+babyTranslations[2]);
 
 	//Baby drawing
 	glUseProgram(babyShaderProgram);
@@ -331,11 +331,11 @@ void keyboard(unsigned char key, int x, int y) {
 		break;
 
 	case 'u':
-		babyTranslation[2] += 0.25;
+		babyTranslations[2] += 0.25;
 		break;
 
 	case 'i':
-		babyTranslation[2] -= 0.25;
+		babyTranslations[2] -= 0.25;
 		break;
 
 	case 'q':
@@ -426,25 +426,83 @@ int main(int argc, char *argv[]) {
 void animate() {
 
 	animation = true;
-	int ms = (1.0 / 30) * 1000;
+	int frameRate = 60;
+	int frameDuration = (1.0 / frameRate) * 1000;
 
-	for (int i = 0; i != 3; i++) {
+	int babyRotationDirection = 1;
+
+	float parameters[7][20] = { 
+		
+		{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 1.0, 70.0, 2.5, 100.0, 0.0, 0.0, 0.0, 0.0, -0.005 },
+		{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 1.0, 70.0, 1.5, 100.0, 0.0, 0.0, 0.0, 0.0, -0.005 },
+		{ 0.0, 0.0, -90.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -1.0, 70.0, 0.65, 350.0, -0.1, 0.5, 0.0, 0.0025, -0.0005 },
+		{ 0.0, 0.0, -124.999, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -1.0, 70.8759, 0.474993, 275.0, -0.2, 0.5, 0.0, 0.01, -0.00025 },
+		{ 0.0, 0.0, -179.999, 28.5, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -1.0, 73.6264, 0.40624, 150.0, 0.0, 0.5, 0.0, 0.0, 0.0 },
+		{ 0.0, 0.0, -179.999, -32.5, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -1.0, 73.6264, 0.40624, 150.0, 0.0, 0.5, 0.0025, 0.0, 0.0 },
+		{ 0.0, -30.0, 0.0, 34.5, 0.0, 0.0, 0.0, 0.0, 0.0, -0.625, 0.375, -1.0, 70.0, 1.5, 160.0, 0.0, 0.5, 0.0025, 0.0, -0.0025 } };
+
+	for (float* p : parameters) {
+
+		for (int i = 0; i != 3; i++) {
+		
+			uterusAngles[i] = p[i];
+			babyAngles[i] = p[3+i];
+			babyTranslations[i] = p[6+i];
+		}
+
+		bezierPoints[0] = vec3(p[9], 0.0, p[10]);
+
+		normalOrientation = p[11];
+
+		fovy = p[12];
+		zoomFactor = p[13];
+	
+		for (int i = 0; i != p[14] + 1; i++) {
+		
+			auto start = chrono::high_resolution_clock::now();
+
+			uterusAngles[2] += p[15];
+			babyAngles[0] += p[16]*babyRotationDirection;
+
+			if (babyAngles[0] > 35 || babyAngles[0] < -35) {
+
+				babyRotationDirection = -babyRotationDirection;
+			}
+
+			bezierPoints[0] += vec3(p[17], 0, p[17]);
+
+			fovy += p[18];
+			zoomFactor += p[19];
+
+			display();
+
+			auto stop = chrono::high_resolution_clock::now();
+			this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
+		}
+	}
+
+	/*for (int i = 0; i != 3; i++) {
 
 		babyAngles[i] = 0;
 		uterusAngles[i] = 0;
-		babyTranslation[i] = 0;
+		babyTranslations[i] = 0;
 	}
 
 	bezierPoints[0] = vec3(-1.0, 0.0, 0.0);
 	bezierPoints[1] = vec3(-1.0, 0.0, 1.3333);
-	bezierPoints[2] = vec3(1.0, 0.0, 1.3333);
-	bezierPoints[3] = vec3(1.0, 0.0, 0.0);
 
+	normalOrientation = 1;
 	zoomFactor = 2.5;
 	fovy = 70;
 
 	display();
 
+	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
+		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
+		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
+		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
+		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
+
 	for (int i = 0; i != 100; i++) {
 
 		auto start = chrono::high_resolution_clock::now();
@@ -453,11 +511,17 @@ void animate() {
 		display();
 
 		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(ms) - chrono::duration_cast<chrono::milliseconds>(stop - start));
+		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
 	}
 
 	zoomFactor = 1.5;
 
+	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
+		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
+		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
+		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
+		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
+
 	for (int i = 0; i != 100; i++) {
 
 		auto start = chrono::high_resolution_clock::now();
@@ -466,7 +530,7 @@ void animate() {
 		display();
 
 		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(ms) - chrono::duration_cast<chrono::milliseconds>(stop - start));
+		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
 	}
 
 	uterusAngles[2] = -90;
@@ -474,7 +538,13 @@ void animate() {
 
 	zoomFactor = 0.65;
 	normalOrientation = -1;
-	int babyRotationDirection = 1;
+	babyRotationDirection = 1;
+
+	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
+		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
+		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
+		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
+		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
 
 	for (int i = 0; i != 350; i++) {
 
@@ -483,17 +553,24 @@ void animate() {
 		zoomFactor -= 0.0005;
 		fovy += 0.0025;
 		uterusAngles[2] -= 0.1;
-		babyAngles[0] += 1.1*babyRotationDirection;
+		babyAngles[0] += 0.5*babyRotationDirection;
 
 		if (babyAngles[0] > 35 || babyAngles[0] < -35) {
 
 			babyRotationDirection = -babyRotationDirection;
 		}
+
 		display();
 
 		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(ms) - chrono::duration_cast<chrono::milliseconds>(stop - start));
+		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
 	}
+
+	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
+		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
+		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
+		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
+		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
 
 	for (int i = 0; i != 275; i++) {
 
@@ -502,7 +579,7 @@ void animate() {
 		zoomFactor -= 0.00025;
 		fovy += 0.01;
 		uterusAngles[2] -= 0.2;
-		babyAngles[0] += 1.1*babyRotationDirection;
+		babyAngles[0] += 0.5*babyRotationDirection;
 
 		if (babyAngles[0] > 35 || babyAngles[0] < -35) {
 
@@ -511,14 +588,20 @@ void animate() {
 		display();
 
 		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(ms) - chrono::duration_cast<chrono::milliseconds>(stop - start));
+		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
 	}
+
+	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
+		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
+		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
+		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
+		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
 
 	for (int i = 0; i != 150; i++) {
 
 		auto start = chrono::high_resolution_clock::now();
 
-		babyAngles[0] += 1.1*babyRotationDirection;
+		babyAngles[0] += 0.5*babyRotationDirection;
 
 		if (babyAngles[0] > 35 || babyAngles[0] < -35) {
 
@@ -527,15 +610,21 @@ void animate() {
 		display();
 
 		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(ms) - chrono::duration_cast<chrono::milliseconds>(stop - start));
+		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
 	}
+
+	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
+		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
+		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
+		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
+		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
 
 	for (int i = 0; i != 150; i++) {
 
 		auto start = chrono::high_resolution_clock::now();
 
 		bezierPoints[0] += vec3(0.0025, 0, 0.0025);
-		babyAngles[0] += 1.1*babyRotationDirection;
+		babyAngles[0] += 0.5*babyRotationDirection;
 
 		if (babyAngles[0] > 35 || babyAngles[0] < -35) {
 
@@ -544,7 +633,7 @@ void animate() {
 		display();
 
 		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(ms) - chrono::duration_cast<chrono::milliseconds>(stop - start));
+		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
 	}
 
 	uterusAngles[1] = -30;
@@ -552,13 +641,19 @@ void animate() {
 	zoomFactor = 1.5;
 	fovy = 70;
 
+	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
+		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
+		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
+		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
+		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
+
 	for (int i = 0; i != 160; i++) {
 
 		auto start = chrono::high_resolution_clock::now();
 
 		zoomFactor -= 0.0025;
 		bezierPoints[0] += vec3(0.0025, 0, 0.0025);
-		babyAngles[0] += 1.1*babyRotationDirection;
+		babyAngles[0] += 0.5*babyRotationDirection;
 
 		if (babyAngles[0] > 35 || babyAngles[0] < -35) {
 
@@ -568,6 +663,6 @@ void animate() {
 		display();
 
 		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(ms) - chrono::duration_cast<chrono::milliseconds>(stop - start));
-	}
+		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
+	}*/
 }
