@@ -35,11 +35,13 @@ vector<vec3> bezierPoints;
 GLuint uterusShaderProgram, babyShaderProgram;
 
 //Lightning
-const float lightPosition[3] = {0, 10, 10};
+const float lightPosition[3] = {0, 75, 75};
 GLuint uterusLightPosition_GLSL, babyLightPosition_GLSL;
 
-const float ambient = 0.1;
+const float ambient = 0.47;
 float uterusAmbient_GLSL, babyAmbient_GLSL;
+
+float orientation_GLSL;
 
 //Angles
 float babyAngles[3] = {0, 0, 0};
@@ -56,7 +58,6 @@ float fovy = 70;
 
 //Animation
 bool animation = false;
-float normalOrientation = 1.0;
 
 void createCylinder(int resolution) {
 
@@ -146,7 +147,7 @@ void display() {
 	
 	for (int i = 0; i != cylinderVertices.size(); i++) {
 
-		vec3 normal = cylinderNormals.at(i)*normalOrientation;
+		vec3 normal = cylinderNormals.at(i);
 		glNormal3f(normal.x, normal.y, normal.z);
 
 		vec2 textureCoordinate = cylinderTextureCoordinates.at(i);
@@ -166,7 +167,7 @@ void display() {
 		float u = i / 100.0f;
 		vec3 point = (1 - 3 * u + 3 * pow(u, 2) - pow(u, 3))*bezierPoints[0] + (3 * u - 6 * pow(u, 2) + 3 * pow(u, 3))*bezierPoints[1] + (3 * pow(u, 2) - 3 * pow(u, 3))*bezierPoints[2] + pow(u, 3)*bezierPoints[3];	
 		vec3 tangent = (-3 * pow(u, 2) + 6 * u - 3)*bezierPoints[0] + (9 * pow(u, 2) - 12 * u + 3)*bezierPoints[1] + (-9 * pow(u, 2) + 6 * u)*bezierPoints[2] + (3 * pow(u, 2))*bezierPoints[3];
-		vec3 normal = cross(tangent, vec3(0, 1, 0))*normalOrientation;
+		vec3 normal = cross(tangent, vec3(0, 1, 0));
 		
 		glVertex3f(point.x, point.y - 1, point.z);
 		glNormal3f(normal.x, normal.y, normal.z);
@@ -272,11 +273,14 @@ void init()
 	fragmentShader = initshaders(GL_FRAGMENT_SHADER, "UterusShader.fp");
 	uterusShaderProgram = initprogram(vertexShader, fragmentShader);
 
+	uterusLightPosition_GLSL = glGetUniformLocation(uterusShaderProgram, "lightPosition");
+	glUniform3fv(uterusLightPosition_GLSL, 1, &lightPosition[0]);
+
 	uterusAmbient_GLSL = glGetUniformLocation(uterusShaderProgram, "ambient");
 	glUniform1f(uterusAmbient_GLSL, ambient);
 
-	uterusLightPosition_GLSL = glGetUniformLocation(uterusShaderProgram, "lightPosition");
-	glUniform3fv(uterusLightPosition_GLSL, 1, &lightPosition[0]);
+	orientation_GLSL = glGetUniformLocation(uterusShaderProgram, "orientation");
+	glUniform1f(orientation_GLSL, 1.0f);	
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, textureIDs[0]);
@@ -452,7 +456,7 @@ void animate() {
 
 		bezierPoints[0] = vec3(p[9], 0.0, p[10]);
 
-		normalOrientation = p[11];
+		glUniform1f(orientation_GLSL, p[11]);
 
 		fovy = p[12];
 		zoomFactor = p[13];
