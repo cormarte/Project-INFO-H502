@@ -1,4 +1,4 @@
-uniform float ambient;
+uniform vec3 ambient;
 uniform vec3 lightPosition;
 
 varying vec3 normal;

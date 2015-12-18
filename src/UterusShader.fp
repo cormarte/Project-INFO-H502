@@ -2,7 +2,7 @@ varying vec3 vLightVector;
 varying vec3 vEyeVector;
 varying vec2 vTextureCoordinates;
 
-uniform float ambient;
+uniform vec3 ambient;
 uniform vec3 lightPosition;
 uniform sampler2D bumpMap;
 uniform sampler2D texture;
@@ -15,5 +15,5 @@ void main() {
 
 	float diffuse = max(dot(vLightVector, bump), 0.0);
 	
-	gl_FragColor = vec4(ambient*color + (1-ambient)*diffuse*color, 1.0);
+	gl_FragColor = vec4(ambient*color + (vec3(1.0f)-ambient)*diffuse*color, 1.0);
 }

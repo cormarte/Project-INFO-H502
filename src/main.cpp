@@ -38,7 +38,7 @@ GLuint uterusShaderProgram, babyShaderProgram;
 const float lightPosition[3] = {0, 75, 75};
 GLuint uterusLightPosition_GLSL, babyLightPosition_GLSL;
 
-const float ambient = 0.47;
+const vec3 ambient(0.47, 0.47, 0.47);
 float uterusAmbient_GLSL, babyAmbient_GLSL;
 
 float orientation_GLSL;
@@ -277,7 +277,7 @@ void init()
 	glUniform3fv(uterusLightPosition_GLSL, 1, &lightPosition[0]);
 
 	uterusAmbient_GLSL = glGetUniformLocation(uterusShaderProgram, "ambient");
-	glUniform1f(uterusAmbient_GLSL, ambient);
+	glUniform3fv(uterusAmbient_GLSL, 1, &ambient[0]);
 
 	orientation_GLSL = glGetUniformLocation(uterusShaderProgram, "orientation");
 	glUniform1f(orientation_GLSL, 1.0f);	
@@ -298,7 +298,7 @@ void init()
 	babyShaderProgram = initprogram(vertexShader, fragmentShader);
 
 	babyAmbient_GLSL = glGetUniformLocation(babyShaderProgram, "ambient");
-	glUniform1f(babyAmbient_GLSL, ambient);
+	glUniform3fv(babyAmbient_GLSL, 1, &ambient[0]);
 
 	babyLightPosition_GLSL = glGetUniformLocation(babyShaderProgram, "lightPosition");
 	glUniform3fv(babyLightPosition_GLSL, 1, &lightPosition[0]);
