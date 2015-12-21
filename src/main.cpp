@@ -5,6 +5,7 @@
 #include <gl\gl.h>
 #include <gl\glu.h>
 #include <glut.h>
+#include <quaternion.hpp>
 #include <iostream>
 #include <math.h>
 #include "ModelReader.h"
@@ -33,15 +34,8 @@ vector<vec3> bezierPoints;
 
 //Shaders
 GLuint uterusShaderProgram, babyShaderProgram;
-
-//Lightning
-const float lightPosition[3] = {0, 75, 75};
-GLuint uterusLightPosition_GLSL, babyLightPosition_GLSL;
-
-const vec3 ambient(0.47, 0.47, 0.47);
-float uterusAmbient_GLSL, babyAmbient_GLSL;
-
-float orientation_GLSL;
+GLuint normalOrientation_GLSL;
+GLuint uterusEyePosition_GLSL, babyEyePosition_GLSL;
 
 //Angles
 float babyAngles[3] = {0, 0, 0};
@@ -51,13 +45,19 @@ float uterusAngles[3] = {0, 0, 0};
 float babyTranslations[3] = {0, 0, 0};
 
 //Zoom
-float zoomFactor = 1.25;
+float eyePosition[3] = { -50, 0, 0 };
 
 //Perspective
 float fovy = 70;
 
-//Animation
-bool animation = false;
+//Redering
+int normalOrientation = 1;
+
+//Trackball
+int xOld = 0;
+int yOld = 0;
+bool leftButtonPressed = false;
+bool rightButtonPressed = false;
 
 void createCylinder(int resolution) {
 
@@ -109,7 +109,7 @@ void display() {
 	//Camera positionning
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	gluLookAt(-40*zoomFactor, 0, 0, 0, 0, 0, 0, 0, 1);
+	gluLookAt(eyePosition[0], eyePosition[1], eyePosition[2], 0, 0, 0, 0, 0, 1);
 	
 	//Axis scaling
 	glRotatef(uterusAngles[0], 1, 0, 0);
@@ -266,6 +266,17 @@ void init()
 	bezierPoints.push_back(vec3(1.0, 0.0, 1.3333));
 	bezierPoints.push_back(vec3(1.0, 0.0, 0.0));
 
+	//Light definition
+	GLfloat lightPosition2[4] = {0.0f, 75.0f, 50.0f, 1.0f};
+	GLfloat ambient[4] = {0.47f, 0.47f, 0.47f, 1.0f};
+	GLfloat diffuse[4] = {0.53f, 0.53f, 0.53f, 1.0f};
+	GLfloat specular[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition2);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, specular);
+
 	//Uterus Shader
 	GLuint vertexShader, fragmentShader;
 
@@ -273,14 +284,11 @@ void init()
 	fragmentShader = initshaders(GL_FRAGMENT_SHADER, "UterusShader.fp");
 	uterusShaderProgram = initprogram(vertexShader, fragmentShader);
 
-	uterusLightPosition_GLSL = glGetUniformLocation(uterusShaderProgram, "lightPosition");
-	glUniform3fv(uterusLightPosition_GLSL, 1, &lightPosition[0]);
+	uterusEyePosition_GLSL = glGetUniformLocation(uterusShaderProgram, "eyePosition");
+	glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
 
-	uterusAmbient_GLSL = glGetUniformLocation(uterusShaderProgram, "ambient");
-	glUniform3fv(uterusAmbient_GLSL, 1, &ambient[0]);
-
-	orientation_GLSL = glGetUniformLocation(uterusShaderProgram, "orientation");
-	glUniform1f(orientation_GLSL, 1.0f);	
+	normalOrientation_GLSL = glGetUniformLocation(uterusShaderProgram, "orientation");
+	glUniform1i(normalOrientation_GLSL, normalOrientation);	
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, textureIDs[0]);
@@ -297,11 +305,8 @@ void init()
 	fragmentShader = initshaders(GL_FRAGMENT_SHADER, "BabyShader.fp");
 	babyShaderProgram = initprogram(vertexShader, fragmentShader);
 
-	babyAmbient_GLSL = glGetUniformLocation(babyShaderProgram, "ambient");
-	glUniform3fv(babyAmbient_GLSL, 1, &ambient[0]);
-
-	babyLightPosition_GLSL = glGetUniformLocation(babyShaderProgram, "lightPosition");
-	glUniform3fv(babyLightPosition_GLSL, 1, &lightPosition[0]);
+	babyEyePosition_GLSL = glGetUniformLocation(babyShaderProgram, "eyePosition");
+	glUniform3fv(babyEyePosition_GLSL, 1, &eyePosition[0]);
 }
 
 void animate();
@@ -367,11 +372,13 @@ void keyboard(unsigned char key, int x, int y) {
 		break;
 
 	case 'w':
-		zoomFactor /= 1.1;
+		eyePosition[0] /= 1.1;
+		glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
 		break;
 
 	case 'x':
-		zoomFactor *= 1.1;
+		eyePosition[0] *= 1.1;
+		glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
 		break;
 
 	case 'c':
@@ -392,12 +399,96 @@ void keyboard(unsigned char key, int x, int y) {
 		//bezierPoints[1] += vec3(0.01, 0, 0.01);
 		break;
 
+	case 'm':
+		normalOrientation = -normalOrientation;
+		glUniform1i(normalOrientation_GLSL, normalOrientation);
+		break;
+
 	case 'p':
 		animate();
 		break;
 	}
 
 	display();
+}
+
+void mouse(int button, int state, int x, int y) {
+
+	x = x - glutGet(GLUT_WINDOW_WIDTH) * 0.5;
+	y = glutGet(GLUT_WINDOW_HEIGHT) * 0.5 - y;
+
+	if (button == GLUT_LEFT_BUTTON) {
+
+		if (state == GLUT_UP) {
+
+			leftButtonPressed = false;
+		}
+
+		else {
+
+			leftButtonPressed = true;
+			xOld = x;
+			yOld = y;
+		}
+	}
+
+	else if (button == GLUT_RIGHT_BUTTON) {
+
+		if (state == GLUT_UP) {
+
+			rightButtonPressed = false;
+		}
+
+		else {
+	
+			rightButtonPressed = true;
+			xOld = x;
+			yOld = y;
+		}
+	}
+
+	else if (button == GLUT_WHEEL_UP) {
+	
+		eyePosition[0] /= 1.1;
+		glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
+		display();
+	}
+
+	else if (button == GLUT_WHEEL_DOWN) {
+
+		eyePosition[0] *= 1.1;
+		glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
+		display();
+	}
+}
+
+void mouseMotion(int x, int y) {
+
+	if (leftButtonPressed || rightButtonPressed) {
+
+		x = x - glutGet(GLUT_WINDOW_WIDTH) * 0.5;
+		y = glutGet(GLUT_WINDOW_HEIGHT) * 0.5 - y;
+
+		float deltaX = x - xOld;
+		float deltaY = y - yOld;
+
+		if (leftButtonPressed) {
+
+			uterusAngles[2] += 0.5*deltaX;
+			uterusAngles[1] += 0.5*deltaY;
+		}
+
+		else if (rightButtonPressed) {
+
+			babyAngles[2] += 0.5*deltaX;
+			babyAngles[0] += 0.5*deltaY;
+		}
+
+		xOld = x;
+		yOld = y;
+
+		display();
+	}
 }
 
 void reshape(int w, int h) {
@@ -423,13 +514,14 @@ int main(int argc, char *argv[]) {
 	glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
 	glutKeyboardFunc(keyboard);
+	glutMouseFunc(mouse);
+	glutMotionFunc(mouseMotion);
 	glutMainLoop();
 	return 0;
 }
 
 void animate() {
 
-	animation = true;
 	int frameRate = 60;
 	int frameDuration = (1.0 / frameRate) * 1000;
 
@@ -456,10 +548,11 @@ void animate() {
 
 		bezierPoints[0] = vec3(p[9], 0.0, p[10]);
 
-		glUniform1f(orientation_GLSL, p[11]);
+		glUniform1i(normalOrientation_GLSL, p[11]);
 
 		fovy = p[12];
-		zoomFactor = p[13];
+		eyePosition[0] = -40*p[13];
+		glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
 	
 		for (int i = 0; i != p[14] + 1; i++) {
 		
@@ -476,7 +569,8 @@ void animate() {
 			bezierPoints[0] += vec3(p[17], 0, p[17]);
 
 			fovy += p[18];
-			zoomFactor += p[19];
+			eyePosition[0] += -40*p[19];
+			glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
 
 			display();
 
@@ -484,189 +578,4 @@ void animate() {
 			this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
 		}
 	}
-
-	/*for (int i = 0; i != 3; i++) {
-
-		babyAngles[i] = 0;
-		uterusAngles[i] = 0;
-		babyTranslations[i] = 0;
-	}
-
-	bezierPoints[0] = vec3(-1.0, 0.0, 0.0);
-	bezierPoints[1] = vec3(-1.0, 0.0, 1.3333);
-
-	normalOrientation = 1;
-	zoomFactor = 2.5;
-	fovy = 70;
-
-	display();
-
-	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
-		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
-		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
-		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
-		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
-
-	for (int i = 0; i != 100; i++) {
-
-		auto start = chrono::high_resolution_clock::now();
-
-		zoomFactor -= 0.005;
-		display();
-
-		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
-	}
-
-	zoomFactor = 1.5;
-
-	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
-		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
-		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
-		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
-		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
-
-	for (int i = 0; i != 100; i++) {
-
-		auto start = chrono::high_resolution_clock::now();
-
-		zoomFactor -= 0.005;
-		display();
-
-		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
-	}
-
-	uterusAngles[2] = -90;
-	display();
-
-	zoomFactor = 0.65;
-	normalOrientation = -1;
-	babyRotationDirection = 1;
-
-	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
-		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
-		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
-		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
-		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
-
-	for (int i = 0; i != 350; i++) {
-
-		auto start = chrono::high_resolution_clock::now();
-
-		zoomFactor -= 0.0005;
-		fovy += 0.0025;
-		uterusAngles[2] -= 0.1;
-		babyAngles[0] += 0.5*babyRotationDirection;
-
-		if (babyAngles[0] > 35 || babyAngles[0] < -35) {
-
-			babyRotationDirection = -babyRotationDirection;
-		}
-
-		display();
-
-		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
-	}
-
-	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
-		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
-		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
-		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
-		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
-
-	for (int i = 0; i != 275; i++) {
-
-		auto start = chrono::high_resolution_clock::now();
-
-		zoomFactor -= 0.00025;
-		fovy += 0.01;
-		uterusAngles[2] -= 0.2;
-		babyAngles[0] += 0.5*babyRotationDirection;
-
-		if (babyAngles[0] > 35 || babyAngles[0] < -35) {
-
-			babyRotationDirection = -babyRotationDirection;
-		}
-		display();
-
-		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
-	}
-
-	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
-		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
-		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
-		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
-		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
-
-	for (int i = 0; i != 150; i++) {
-
-		auto start = chrono::high_resolution_clock::now();
-
-		babyAngles[0] += 0.5*babyRotationDirection;
-
-		if (babyAngles[0] > 35 || babyAngles[0] < -35) {
-
-			babyRotationDirection = -babyRotationDirection;
-		}
-		display();
-
-		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
-	}
-
-	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
-		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
-		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
-		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
-		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
-
-	for (int i = 0; i != 150; i++) {
-
-		auto start = chrono::high_resolution_clock::now();
-
-		bezierPoints[0] += vec3(0.0025, 0, 0.0025);
-		babyAngles[0] += 0.5*babyRotationDirection;
-
-		if (babyAngles[0] > 35 || babyAngles[0] < -35) {
-
-			babyRotationDirection = -babyRotationDirection;
-		}
-		display();
-
-		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
-	}
-
-	uterusAngles[1] = -30;
-	uterusAngles[2] = 0;
-	zoomFactor = 1.5;
-	fovy = 70;
-
-	cout << uterusAngles[0] << ", " << uterusAngles[1] << ", " << uterusAngles[2] << ", "
-		<< babyAngles[0] << ", " << babyAngles[1] << ", " << babyAngles[2] << ", "
-		<< babyTranslations[0] << ", " << babyTranslations[1] << ", " << babyTranslations[2] << ", "
-		<< bezierPoints[0].x << ", " << bezierPoints[0].z << ", "
-		<< normalOrientation << ", " << fovy << ", " << zoomFactor << endl;
-
-	for (int i = 0; i != 160; i++) {
-
-		auto start = chrono::high_resolution_clock::now();
-
-		zoomFactor -= 0.0025;
-		bezierPoints[0] += vec3(0.0025, 0, 0.0025);
-		babyAngles[0] += 0.5*babyRotationDirection;
-
-		if (babyAngles[0] > 35 || babyAngles[0] < -35) {
-
-			babyRotationDirection = -babyRotationDirection;
-		}
-
-		display();
-
-		auto stop = chrono::high_resolution_clock::now();
-		this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
-	}*/
 }

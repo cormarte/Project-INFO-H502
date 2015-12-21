@@ -1,19 +1,27 @@
+varying vec2 vTextureCoordinates;
 varying vec3 vLightVector;
 varying vec3 vEyeVector;
-varying vec2 vTextureCoordinates;
+//varying vec3 vHalfVector;
 
-uniform vec3 ambient;
-uniform vec3 lightPosition;
 uniform sampler2D bumpMap;
 uniform sampler2D texture;
 
 void main() {
 
-	vec3 color = texture2D(texture, vTextureCoordinates).rgb;
+	float distance = sqrt(dot(vLightVector, vLightVector));
+	float attenuation = clamp(1.0 - 0.0005 * distance, 0.0, 1.0);
 
-	vec3 bump = normalize(texture2D(bumpMap, vTextureCoordinates).rgb * 2.0f - 1.0f);
+	vec4 color = texture2D(texture, vTextureCoordinates);
 
-	float diffuse = max(dot(vLightVector, bump), 0.0);
+	vec3 normal = normalize(texture2D(bumpMap, vTextureCoordinates).rgb * 2.0f - 1.0f);
 	
-	gl_FragColor = vec4(ambient*color + (vec3(1.0f)-ambient)*diffuse*color, 1.0);
+	//Diffuse
+	//float diffuseCoefficient = max(vLightVector, normal), 0.0);
+	float diffuseCoefficient = max(dot(normalize(vLightVector), normal), 0.0);
+
+	//Specular
+	//float specularCoefficient = pow(max(dot(vHalfVector, normal), 0.0), 32.0);
+	float specularCoefficient = pow(clamp(dot(reflect(-normalize(vLightVector), normal), normalize(vEyeVector)), 0.0, 1.0), 32);
+
+	gl_FragColor = (gl_LightSource[0].ambient*color + gl_LightSource[0].diffuse*diffuseCoefficient*color + gl_LightSource[0].specular*specularCoefficient)*attenuation;
 }

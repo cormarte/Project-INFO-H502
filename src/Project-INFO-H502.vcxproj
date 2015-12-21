@@ -98,7 +98,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\libs\freeimage-3.15.3\include;..\libs\glew-1.13.0\include;..\libs\glm-0.9.7.1\src;..\libs\glut-3.7\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\libs\freeimage-3.15.3\include;..\libs\glew-1.13.0\include;..\libs\glm-0.9.7.1\src;..\libs\glm-0.9.7.1\src\gtc;..\libs\glut-3.7\include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>

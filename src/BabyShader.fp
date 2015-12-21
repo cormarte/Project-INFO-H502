@@ -1,14 +1,18 @@
-uniform vec3 ambient;
-uniform vec3 lightPosition;
-
-varying vec3 normal;
+varying vec3 vNormal;
+varying vec3 vLightVector;
+varying vec3 vEyeVector;
 
 void main() {
 	
-	//Diffusion
-	float diffuse = max(dot(normalize(vec3(normal)), normalize(vec3(lightPosition))), 0.0);
-    vec3 color = diffuse * vec3(0.9960/2.0, 0.7647/2.0, 0.6745/2.0) + vec3(0.9960/2.0, 0.7647/2.0, 0.6745/2.0);
+	vec4 color = vec4(0.9960, 0.7647, 0.6745, 1.0);
+
+	//Diffuse
+	float diffuseCoefficient = clamp(dot(normalize(vNormal), normalize(vLightVector)), 0.0, 1.0);
+    
+	//Specular
+	float waxiness = 0.1f;
+	float specularCoefficient = waxiness + (1-waxiness)*pow(clamp(dot(reflect(-normalize(vLightVector), normalize(vNormal)), normalize(vEyeVector)), 0.0, 1.0), 32);
 
 	//Output color
-	gl_FragColor = vec4(color, 1.0);
+	gl_FragColor = gl_LightSource[0].ambient*color + gl_LightSource[0].diffuse*diffuseCoefficient*color + gl_LightSource[0].specular*specularCoefficient;
 }
