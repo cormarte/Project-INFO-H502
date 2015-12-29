@@ -17,11 +17,12 @@ void main() {
 	
 	//Diffuse
 	//float diffuseCoefficient = max(vLightVector, normal), 0.0);
-	float diffuseCoefficient = max(dot(normalize(vLightVector), normal), 0.0);
+	float diffuseCoefficient = clamp(dot(normalize(vLightVector), normal), 0.0, 1.0);
 
 	//Specular
 	//float specularCoefficient = pow(max(dot(vHalfVector, normal), 0.0), 32.0);
 	float specularCoefficient = pow(clamp(dot(reflect(-normalize(vLightVector), normal), normalize(vEyeVector)), 0.0, 1.0), 32);
 
-	gl_FragColor = (gl_LightSource[0].ambient*color + gl_LightSource[0].diffuse*diffuseCoefficient*color + gl_LightSource[0].specular*specularCoefficient)*attenuation;
+	gl_FragColor = (gl_LightSource[0].ambient*color + gl_LightSource[0].diffuse*diffuseCoefficient*color + gl_LightSource[0].specular*specularCoefficient)*attenuation;	
 }
+

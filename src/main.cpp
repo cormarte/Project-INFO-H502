@@ -27,6 +27,7 @@ vector<vec2> babyTextureCoordinates;
 vector<vec3> babyVertices;
 
 vector<vec3> cylinderNormals;
+vector<vec3> cylinderTangents;
 vector<vec2> cylinderTextureCoordinates;
 vector<vec3> cylinderVertices;
 
@@ -35,6 +36,7 @@ vector<vec3> bezierPoints;
 //Shaders
 GLuint uterusShaderProgram, babyShaderProgram;
 GLuint normalOrientation_GLSL;
+GLuint uterusTangent_GLSL;
 GLuint uterusEyePosition_GLSL, babyEyePosition_GLSL;
 
 //Angles
@@ -42,10 +44,10 @@ float babyAngles[3] = {0, 0, 0};
 float uterusAngles[3] = {0, 0, 0};
 
 //Translation
-float babyTranslations[3] = {0, 0, 0};
+float babyTranslations[3] = {0, 0, -5};
 
 //Zoom
-float eyePosition[3] = { -50, 0, 0 };
+float eyePosition[3] = {-50, 0, 0};
 
 //Perspective
 float fovy = 70;
@@ -63,7 +65,7 @@ void createCylinder(int resolution) {
 
 	for (int i = 0; i <= resolution; i++) {
 
-		float theta = (float)i*((M_PI) / (float)resolution);
+		float theta = (float)i*((2*M_PI) / (float)resolution);
 
 		vec3 normal;
 		normal.x = cosf(theta);
@@ -72,13 +74,16 @@ void createCylinder(int resolution) {
 		cylinderNormals.push_back(normal);
 		cylinderNormals.push_back(normal);
 
+		vec3 tangent = normalize(cross(normal, vec3(0, 1, 0)));
+		cylinderTangents.push_back(tangent);
+
 		vec2 upperTextureCoordinate;
-		upperTextureCoordinate.x = (float)i*(0.5f/resolution);
+		upperTextureCoordinate.x = (float)i*(1.0f/resolution);
 		upperTextureCoordinate.y = 1.0f;
 		cylinderTextureCoordinates.push_back(upperTextureCoordinate);
 
 		vec2 lowerTextureCoordinate;
-		lowerTextureCoordinate.x = (float)i*(0.5f/resolution);
+		lowerTextureCoordinate.x = (float)i*(1.0f/resolution);
 		lowerTextureCoordinate.y = 0.0f;
 		cylinderTextureCoordinates.push_back(lowerTextureCoordinate);
 
@@ -120,7 +125,7 @@ void display() {
 	glRotatef(babyAngles[0], 1, 0, 0);
 	glRotatef(babyAngles[1], 0, 1, 0);
 	glRotatef(babyAngles[2], 0, 0, 1);
-	glTranslatef(0.0, 0.0, -5.0+babyTranslations[2]);
+	glTranslatef(babyTranslations[0], babyTranslations[1], babyTranslations[2]);
 
 	//Baby drawing
 	glUseProgram(babyShaderProgram);
@@ -141,41 +146,93 @@ void display() {
 	glPopMatrix();
 	glScalef(16.0, 18.0, 16.0);
 	
-	//Half cylinder drawing
 	glUseProgram(uterusShaderProgram);
+
+	//Cylinder caps drawing
+	for (int i = 0; i != 2; i ++) {
+	
+		glBegin(GL_TRIANGLE_FAN);
+
+		float y = pow(-1, i);
+
+		vec3 normal = normalize(vec3(0.0, y, 0.0));
+		vec3 tangent = normalize(cross(normal, vec3(1.0, 0.0, 1.0)));
+
+		//Non-Bezier half
+		glNormal3f(normal.x, normal.y, normal.z);
+		glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
+		glTexCoord2f(0.5, 0.5);
+		glVertex3f(0.0, y, 0.0);
+		
+		for (int j = 0; j < cylinderVertices.size()/4+2; j += 2) {
+
+			vec3 vertex = cylinderVertices.at(2 * j + i);
+
+			glNormal3f(normal.x, normal.y, normal.z);
+			glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
+			glTexCoord2f(vertex.x, vertex.z);
+			glVertex3f(vertex.x, vertex.y, vertex.z);
+		}
+
+		//Bezier half
+		vec3 point1 = vec3(-1.0, y, 0.0);
+		vec3 point2 = vec3(-1.0, y, 1.3333);
+		vec3 point3 = vec3(1.0, y, 1.3333);
+		vec3 point4 = vec3(1.0, y, 0.0);
+
+		for (int j = 0; j != 101; j++) {
+
+			float u = j / 100.0f;
+			vec3 vertex = (1 - 3 * u + 3 * pow(u, 2) - pow(u, 3))*point1 + (3 * u - 6 * pow(u, 2) + 3 * pow(u, 3))*point2 + (3 * pow(u, 2) - 3 * pow(u, 3))*point3 + pow(u, 3)*point4;
+
+			glNormal3f(normal.x, normal.y, normal.z);
+			glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
+			glTexCoord2f(vertex.x, vertex.z);
+			glVertex3f(vertex.x, vertex.y, vertex.z);
+		}
+
+		glEnd();
+	}
+
+	//Cylinder body drawing
+	//Non-Bezier half
 	glBegin(GL_TRIANGLE_STRIP);
 	
-	for (int i = 0; i != cylinderVertices.size(); i++) {
+	for (int i = 0; i != cylinderVertices.size()/2+1; i++) {
 
 		vec3 normal = cylinderNormals.at(i);
-		glNormal3f(normal.x, normal.y, normal.z);
-
+		vec3 tangent = normalize(cross(normal, vec3(0, 1, 0)));
 		vec2 textureCoordinate = cylinderTextureCoordinates.at(i);
-		glTexCoord2f(textureCoordinate.x, textureCoordinate.y);
-
 		vec3 vertex = cylinderVertices.at(i);
+		
+		glNormal3f(normal.x, normal.y, normal.z);
+		glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
+		glTexCoord2f(textureCoordinate.x, textureCoordinate.y);
 		glVertex3f(vertex.x, vertex.y, vertex.z);
 	}
 
 	glEnd();
 
-	//Bezier drawing
+	//Bezier half
 	glBegin(GL_TRIANGLE_STRIP);
-	
+
 	for (int i = 0; i != 101; i++) {
 
 		float u = i / 100.0f;
-		vec3 point = (1 - 3 * u + 3 * pow(u, 2) - pow(u, 3))*bezierPoints[0] + (3 * u - 6 * pow(u, 2) + 3 * pow(u, 3))*bezierPoints[1] + (3 * pow(u, 2) - 3 * pow(u, 3))*bezierPoints[2] + pow(u, 3)*bezierPoints[3];	
-		vec3 tangent = (-3 * pow(u, 2) + 6 * u - 3)*bezierPoints[0] + (9 * pow(u, 2) - 12 * u + 3)*bezierPoints[1] + (-9 * pow(u, 2) + 6 * u)*bezierPoints[2] + (3 * pow(u, 2))*bezierPoints[3];
+		vec3 tangent = normalize((-3 * pow(u, 2) + 6 * u - 3)*bezierPoints[0] + (9 * pow(u, 2) - 12 * u + 3)*bezierPoints[1] + (-9 * pow(u, 2) + 6 * u)*bezierPoints[2] + (3 * pow(u, 2))*bezierPoints[3]);
 		vec3 normal = cross(tangent, vec3(0, 1, 0));
-		
-		glVertex3f(point.x, point.y - 1, point.z);
-		glNormal3f(normal.x, normal.y, normal.z);
-		glTexCoord2f(0.5f + u / 2, 1.0f);
+		vec3 vertex = (1 - 3 * u + 3 * pow(u, 2) - pow(u, 3))*bezierPoints[0] + (3 * u - 6 * pow(u, 2) + 3 * pow(u, 3))*bezierPoints[1] + (3 * pow(u, 2) - 3 * pow(u, 3))*bezierPoints[2] + pow(u, 3)*bezierPoints[3];
+		tangent *= -1.0f;
 
-		glVertex3f(point.x, point.y + 1, point.z);
 		glNormal3f(normal.x, normal.y, normal.z);
+		glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
 		glTexCoord2f(0.5f + u / 2, 0.0f);
+		glVertex3f(vertex.x, vertex.y - 1, vertex.z);
+
+		glNormal3f(normal.x, normal.y, normal.z);
+		glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
+		glTexCoord2f(0.5f + u / 2, 1.0f);
+		glVertex3f(vertex.x, vertex.y + 1, vertex.z);
 	}
 
 	glEnd();
@@ -258,7 +315,7 @@ void init()
 	ModelReader::getInstance()->readFile("..//data//baby_model.ply", babyVertices, babyNormals, babyTextureCoordinates);
 
 	//Cylinder creation
-	createCylinder(50);
+	createCylinder(100);
 
 	//Bezier initialization
 	bezierPoints.push_back(vec3(-1.0, 0.0, 0.0));
@@ -267,12 +324,18 @@ void init()
 	bezierPoints.push_back(vec3(1.0, 0.0, 0.0));
 
 	//Light definition
-	GLfloat lightPosition2[4] = {0.0f, 75.0f, 50.0f, 1.0f};
-	GLfloat ambient[4] = {0.47f, 0.47f, 0.47f, 1.0f};
-	GLfloat diffuse[4] = {0.53f, 0.53f, 0.53f, 1.0f};
-	GLfloat specular[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+	/*GLfloat lightPosition[4] = {0.0f, 75.0f, 50.0f, 1.0f};
+	GLfloat lightPosition[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	GLfloat ambient[4] = {0.45f, 0.45f, 0.45f, 1.0f};
+	GLfloat diffuse[4] = {0.55f, 0.55f, 0.55f, 1.0f};
+	GLfloat specular[4] = {1.0f, 1.0f, 1.0f, 1.0f};*/
 
-	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition2);
+	GLfloat lightPosition[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	GLfloat ambient[4] = { 0.35f, 0.35f, 0.35f, 1.0f };
+	GLfloat diffuse[4] = { 0.55f, 0.55f, 0.55f, 1.0f };
+	GLfloat specular[4] = { 0.9f, 0.9f, 0.9f, 1.0f };
+
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, specular);
@@ -286,6 +349,8 @@ void init()
 
 	uterusEyePosition_GLSL = glGetUniformLocation(uterusShaderProgram, "eyePosition");
 	glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
+
+	uterusTangent_GLSL = glGetAttribLocation(uterusShaderProgram, "gl_Tangent");
 
 	normalOrientation_GLSL = glGetUniformLocation(uterusShaderProgram, "orientation");
 	glUniform1i(normalOrientation_GLSL, normalOrientation);	
@@ -481,7 +546,7 @@ void mouseMotion(int x, int y) {
 		else if (rightButtonPressed) {
 
 			babyAngles[2] += 0.5*deltaX;
-			babyAngles[0] += 0.5*deltaY;
+			babyAngles[1] += 0.5*deltaY;
 		}
 
 		xOld = x;
@@ -529,13 +594,13 @@ void animate() {
 
 	float parameters[7][20] = { 
 		
-		{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 1.0, 70.0, 2.5, 100.0, 0.0, 0.0, 0.0, 0.0, -0.005 },
-		{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 1.0, 70.0, 1.5, 100.0, 0.0, 0.0, 0.0, 0.0, -0.005 },
-		{ 0.0, 0.0, -90.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -1.0, 70.0, 0.65, 350.0, -0.1, 0.5, 0.0, 0.0025, -0.0005 },
-		{ 0.0, 0.0, -124.999, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -1.0, 70.8759, 0.474993, 275.0, -0.2, 0.5, 0.0, 0.01, -0.00025 },
-		{ 0.0, 0.0, -179.999, 28.5, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -1.0, 73.6264, 0.40624, 150.0, 0.0, 0.5, 0.0, 0.0, 0.0 },
-		{ 0.0, 0.0, -179.999, -32.5, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -1.0, 73.6264, 0.40624, 150.0, 0.0, 0.5, 0.0025, 0.0, 0.0 },
-		{ 0.0, -30.0, 0.0, 34.5, 0.0, 0.0, 0.0, 0.0, 0.0, -0.625, 0.375, -1.0, 70.0, 1.5, 160.0, 0.0, 0.5, 0.0025, 0.0, -0.0025 } };
+		{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, 1.0, 70.0, 2.5, 100.0, 0.0, 0.0, 0.0, 0.0, -0.005 },
+		{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, 1.0, 70.0, 1.5, 100.0, 0.0, 0.0, 0.0, 0.0, -0.005 },
+		{ 0.0, 0.0, -90.0, 0.0, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, -1.0, 70.0, 0.65, 350.0, -0.1, 0.5, 0.0, 0.0025, -0.0005 },
+		{ 0.0, 0.0, -124.999, 33.0, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, -1.0, 70.8759, 0.474993, 275.0, -0.2, 0.5, 0.0, 0.01, -0.00025 },
+		{ 0.0, 0.0, -179.999, 28.5, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, -1.0, 73.6264, 0.40624, 150.0, 0.0, 0.5, 0.0, 0.0, 0.0 },
+		{ 0.0, 0.0, -179.999, -32.5, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, -1.0, 73.6264, 0.40624, 150.0, 0.0, 0.5, 0.0025, 0.0, 0.0 },
+		{ 0.0, -30.0, 0.0, 34.5, 0.0, 0.0, 0.0, 0.0, -5.0, -0.625, 0.375, -1.0, 70.0, 1.5, 160.0, 0.0, 0.5, 0.0025, 0.0, -0.0025 } };
 
 	for (float* p : parameters) {
 
