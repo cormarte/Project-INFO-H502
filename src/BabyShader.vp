@@ -1,6 +1,6 @@
 varying vec3 vNormal;
 varying vec3 vLightVector;
-varying vec3 vEyeVector;
+varying vec3 vViewVector;
 
 uniform vec3 eyePosition;
 
@@ -11,9 +11,8 @@ void main() {
 	vec3 vertexPosition = vec3(gl_ModelViewMatrix * gl_Vertex);
 	
 	vLightVector = vec3(gl_LightSource[0].position) - vertexPosition;
-	
-	//vEyeVector = eyePosition-vertexPosition;
-	vEyeVector = -vertexPosition;
+
+	vViewVector = -vertexPosition;
 
 	gl_Position = ftransform();
 }

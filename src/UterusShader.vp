@@ -5,42 +5,27 @@ uniform vec3 eyePosition;
 
 varying vec2 vTextureCoordinates;
 varying vec3 vLightVector;
-varying vec3 vEyeVector;
-//varying vec3 vHalfVector;
+varying vec3 vViewVector;
 
 void main() {
 
 	vTextureCoordinates = gl_MultiTexCoord0.xy;
 
-	//vec3 normal = normalize(gl_NormalMatrix * gl_Normal * orientation);
-	//vec3 tangent = normalize(gl_NormalMatrix * cross(gl_Normal * orientation, vec3(0, 1, 0)));
 	vec3 normal = normalize(gl_NormalMatrix * gl_Normal * orientation);
-	//vec3 tangent = normalize(gl_NormalMatrix * cross(gl_Normal * orientation, vec3(0, orientation, 0)));
 	vec3 tangent = normalize(gl_NormalMatrix * gl_Tangent);
 	vec3 binormal = cross(normal, tangent);
 
 	vec3 vertexPosition = vec3(gl_ModelViewMatrix * gl_Vertex);
-	
-	//vec3 lightDirection = normalize(gl_LightSource[0].position - vertexPosition)*-1;
+
 	vec3 lightDirection = (vec3(gl_LightSource[0].position) - vertexPosition);
 	vLightVector.x = dot(lightDirection, tangent);
 	vLightVector.y = dot(lightDirection, binormal);
 	vLightVector.z = dot(lightDirection, normal);
-	//vLightVector = normalize(vLightVector);
 
-	//vec3 eyeDirection =  normalize(eyePosition-vertexPosition);
-	//vec3 eyeDirection = eyePosition-vertexPosition;
 	vec3 eyeDirection = -vertexPosition;
-	vEyeVector.x = dot(eyeDirection, tangent);
-	vEyeVector.y = dot(eyeDirection, binormal);
-	vEyeVector.z = dot(eyeDirection, normal);
-	//vEyeVector = normalize(vEyeVector);
-
-	/*vec3 halfVector = normalize((normalize(vertexPosition) + lightDirection) / 2.0f); 
-	vHalfVector.x = dot(halfVector, tangent);
-	vHalfVector.y = dot(halfVector, binormal);
-	vHalfVector.z = dot(halfVector, normal);
-	vHalfVector = normalize(vHalfVector);*/
+	vViewVector.x = dot(eyeDirection, tangent);
+	vViewVector.y = dot(eyeDirection, binormal);
+	vViewVector.z = dot(eyeDirection, normal);
 
 	gl_Position = ftransform();
 }
