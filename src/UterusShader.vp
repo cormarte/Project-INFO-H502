@@ -1,7 +1,6 @@
 attribute vec3 gl_Tangent;
 
 uniform int orientation;
-uniform vec3 eyePosition;
 
 varying vec2 vTextureCoordinates;
 varying vec3 vLightVector;

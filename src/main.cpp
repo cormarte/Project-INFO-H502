@@ -20,7 +20,7 @@ static int g_window;
 
 //Textures
 GLuint textureIDs[2];
-const char* paths[2] = { "..//data//uterus_texture.jpg", "..//data//uterus_bump.jpg" };
+const char* paths[2] = { "..//data//uterus.jpg", "..//data//uterus_bump.jpg" };
 
 //Model
 vector<vec3> babyNormals;
@@ -29,18 +29,15 @@ vector<vec3> babyVertices;
 vector<vec3> cylinderNormals;
 vector<vec3> cylinderTangents;
 vector<vec2> cylinderTextureCoordinates;
-vector<vec2> cylinderCapsTextureCoordinates;
 vector<vec3> cylinderVertices;
 
 vector<vec3> bezierPoints;
 
-mat4 rotation = mat4();
 
 //Shaders
 GLuint uterusShaderProgram, babyShaderProgram;
 GLuint normalOrientation_GLSL;
 GLuint uterusTangent_GLSL;
-GLuint uterusEyePosition_GLSL, babyEyePosition_GLSL;
 
 //Angles
 float babyAngles[3] = {0, 0, 0};
@@ -51,7 +48,7 @@ float uterusAngles[3] = {0, 0, 0};
 float babyTranslations[3] = {0, 0, 0};
 
 //Zoom
-float eyePosition[3] = {0, 0, 15.0};
+float cameraPosition[3] = {0, 0, 15.0};
 
 //Perspective
 float fovy = 75;
@@ -92,10 +89,6 @@ void createCylinder(int resolution) {
 		lowerTextureCoordinate.y = 1.0f;
 		cylinderTextureCoordinates.push_back(lowerTextureCoordinate);
 
-		/*vec2 capsTextureCoordinate;
-		capsTextureCoordinate.x = 0.5 + 0.5*cos(theta);
-		capsTextureCoordinate.x = 0.5 + 0.5*cos(theta);*/
-
 		vec3 upperVertex;
 		upperVertex.x = 1.0;
 		upperVertex.y = -sinf(theta);
@@ -123,7 +116,7 @@ void display() {
 	//Camera positionning
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	gluLookAt(eyePosition[0], eyePosition[1], eyePosition[2], 0, 0, 0, 0, 1, 0);
+	gluLookAt(cameraPosition[0], cameraPosition[1], cameraPosition[2], 0, 0, 0, 0, 1, 0);
 	
 	//Rotation of both baby and uterus
 	glRotatef(uterusAngles[0], 1, 0, 0);
@@ -131,10 +124,10 @@ void display() {
 	glRotatef(uterusAngles[2], 0, 0, 1);
 	glPushMatrix();
 
+	glTranslatef(babyTranslations[0], babyTranslations[1], babyTranslations[2]);
 	glRotatef(babyAngles[0], 1, 0, 0);
 	glRotatef(babyAngles[1], 0, 1, 0);
 	glRotatef(babyAngles[2], 0, 0, 1);
-	glTranslatef(babyTranslations[0], babyTranslations[1], babyTranslations[2]);
 
 	//Baby drawing
 	glUseProgram(babyShaderProgram);
@@ -353,7 +346,7 @@ void init()
 
 	GLfloat lightPosition[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	GLfloat ambient[4] = { 0.35f, 0.35f, 0.35f, 1.0f };
-	GLfloat diffuse[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+	GLfloat diffuse[4] = { 0.55f, 0.55f, 0.55f, 1.0f };
 	GLfloat specular[4] = { 0.9f, 0.9f, 0.9f, 1.0f };
 
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
@@ -367,9 +360,6 @@ void init()
 	vertexShader = initshaders(GL_VERTEX_SHADER, "UterusShader.vp");
 	fragmentShader = initshaders(GL_FRAGMENT_SHADER, "UterusShader.fp");
 	uterusShaderProgram = initprogram(vertexShader, fragmentShader);
-
-	uterusEyePosition_GLSL = glGetUniformLocation(uterusShaderProgram, "eyePosition");
-	glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
 
 	uterusTangent_GLSL = glGetAttribLocation(uterusShaderProgram, "gl_Tangent");
 
@@ -390,9 +380,6 @@ void init()
 	vertexShader = initshaders(GL_VERTEX_SHADER, "BabyShader.vp");
 	fragmentShader = initshaders(GL_FRAGMENT_SHADER, "BabyShader.fp");
 	babyShaderProgram = initprogram(vertexShader, fragmentShader);
-
-	babyEyePosition_GLSL = glGetUniformLocation(babyShaderProgram, "eyePosition");
-	glUniform3fv(babyEyePosition_GLSL, 1, &eyePosition[0]);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, textureIDs[0]);
@@ -431,11 +418,11 @@ void keyboard(unsigned char key, int x, int y) {
 		break;
 
 	case 'u':
-		babyTranslations[2] += 0.25;
+		babyTranslations[1] += 0.25;
 		break;
 
 	case 'i':
-		babyTranslations[2] -= 0.25;
+		babyTranslations[1] -= 0.25;
 		break;
 
 	case 'q':
@@ -463,37 +450,39 @@ void keyboard(unsigned char key, int x, int y) {
 		break;
 
 	case 'w':
-		eyePosition[2] /= 1.1;
+		cameraPosition[2] /= 1.1;
+		cout << "Cam: " << cameraPosition[2] << endl;
 
-		if (eyePosition[2] > 16.95 && eyePosition[2] < 30) {
+		if (cameraPosition[2] > 16.95 && cameraPosition[2] < 30) {
 
-			eyePosition[2] = 16.95;
+			cameraPosition[2] = 16.95;
 			normalOrientation = -1;
 			glUniform1i(normalOrientation_GLSL, normalOrientation);
 		}
 
-		glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
 		break;
 
 	case 'x':
-		eyePosition[2] *= 1.1;
+		cameraPosition[2] *= 1.1;
+		cout << "Cam: " << cameraPosition[2] << endl;
 
-		if (eyePosition[2] > 16.95 && eyePosition[2] < 30) {
+		if (cameraPosition[2] > 16.95 && cameraPosition[2] < 30) {
 
-			eyePosition[2] = 30;
+			cameraPosition[2] = 30;
 			normalOrientation = -1;
 			glUniform1i(normalOrientation_GLSL, normalOrientation);
 		}
 
-		glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
 		break;
 
 	case 'c':
 		fovy -= 1;
+		cout << "FOV: " << fovy << endl;
 		break;
 
 	case 'v':
 		fovy += 1;
+		cout << "FOV: " << fovy << endl;
 		break;
 
 	case 'b':
@@ -553,31 +542,29 @@ void mouse(int button, int state, int x, int y) {
 
 	else if (button == GLUT_WHEEL_UP) {
 	
-		eyePosition[2] /= 1.1;
+		cameraPosition[2] /= 1.1;
 
-		if (eyePosition[2] > 16.85 && eyePosition[2] < 34) {
+		if (cameraPosition[2] > 16.85 && cameraPosition[2] < 34) {
 
-			eyePosition[2] = 16.85;
+			cameraPosition[2] = 16.85;
 			normalOrientation = -1;
 			glUniform1i(normalOrientation_GLSL, normalOrientation);
 		}
 
-		glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
 		display();
 	}
 
 	else if (button == GLUT_WHEEL_DOWN) {
 
-		eyePosition[2] *= 1.1;
+		cameraPosition[2] *= 1.1;
 
-		if (eyePosition[2] > 16.85 && eyePosition[2] < 34) {
+		if (cameraPosition[2] > 16.85 && cameraPosition[2] < 34) {
 
-			eyePosition[2] = 34;
+			cameraPosition[2] = 34;
 			normalOrientation = 1;
 			glUniform1i(normalOrientation_GLSL, normalOrientation);
 		}
 
-		glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
 		display();
 	}
 }
@@ -611,14 +598,13 @@ void mouseMotion(int x, int y) {
 
 void reshape(int w, int h) {
 
-	/*glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+	glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(-4.0, 4.0, -4.0 * (GLfloat)h / (GLfloat)w,
-		4.0 * (GLfloat)h / (GLfloat)w, -10.0, 10.0);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	gluLookAt(5, 0, 0, 0, 0, 0, 0, 0, 1);*/
+	gluPerspective(fovy, (GLfloat)w / (GLfloat)h, 1, 1000);
+
+	display();
 }
 
 int main(int argc, char *argv[]) {
@@ -645,15 +631,21 @@ void animate() {
 
 	int babyRotationDirection = 1;
 
-	float parameters[7][20] = { 
+	float parameters[13][24] = { 
 		
-		{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, 1.0, 70.0, 2.5, 100.0, 0.0, 0.0, 0.0, 0.0, -0.005 },
-		{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, 1.0, 70.0, 1.5, 100.0, 0.0, 0.0, 0.0, 0.0, -0.005 },
-		{ 0.0, 0.0, -90.0, 0.0, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, -1.0, 70.0, 0.65, 350.0, -0.1, 0.5, 0.0, 0.0025, -0.0005 },
-		{ 0.0, 0.0, -124.999, 33.0, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, -1.0, 70.8759, 0.474993, 275.0, -0.2, 0.5, 0.0, 0.01, -0.00025 },
-		{ 0.0, 0.0, -179.999, 28.5, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, -1.0, 73.6264, 0.40624, 150.0, 0.0, 0.5, 0.0, 0.0, 0.0 },
-		{ 0.0, 0.0, -179.999, -32.5, 0.0, 0.0, 0.0, 0.0, -5.0, -1.0, 0.0, -1.0, 73.6264, 0.40624, 150.0, 0.0, 0.5, 0.0025, 0.0, 0.0 },
-		{ 0.0, -30.0, 0.0, 34.5, 0.0, 0.0, 0.0, 0.0, -5.0, -0.625, 0.375, -1.0, 70.0, 1.5, 160.0, 0.0, 0.5, 0.0025, 0.0, -0.0025 } };
+		{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 70.0, 125, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,  0.0, 0.0, -0.25 },
+		{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 70.0, 70.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.25 },
+		{ 0.0, -90.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, -1.0, 75.0, 16.85, 900.0, -0.1, 0.0, 0.0, 0.375, 0.0, 0.0, 0.0, 0.0, -0.002 },
+		{ 0.0, -180.0, 0.0, 0.0, 0.0, 5.25, 0.0, 0.0, 0.0, 0.0, 1.0, -1.0, 75.0, 15.0497, 350.0, 0.0, 0.0, 0.0, 0.375, 0.0, 0.0, 0.0, 0.0, 0.0 },
+		{ 0.0, -180.0, 0.0, 0.0, 0.0, 15.0, 0.0, 0.0, 0.0, 0.0, 1.0, -1.0, 75.0, 15.0497, 150.0, 0.0, 0.0, 0.0, 0.375, 0.0,  0.0, 0.0, 0.0025, 0.0 },
+		{ 30.0, 0.0, 0.0, 0.0, 0.0, -0.75, 0.0, 0.0, 0.0, 0.375, 0.625, -1.0, 70.0, 70.0, 160.0, 0.0, 0.0, 0.0, 0.375, 0.0,  0.0, 0.0, 0.0025, -0.0625 },
+		{ 30.0, 0.0, 0.0, 0.0, 0.0, 30.0, 0.0, 0.0, 0.0, 0.775, 0.225, -1.0, 70.0, 60.0, 160.0, 0.0, 0.0, 0.0, 0.375, 0.0, 0.0, 0.0, 0.0, -0.0625 },
+		{ 30.0, 0.0, 0.0, 0.0, 0.0, 9.75, 0.0, 0.0, 0.0, 0.775, 0.225, -1.0, 70.0, 50.0, 300.0, 0.0, 0.0, 0.0, 0.375, 0.0, 0.0, 0.0, 0.0, 0.0 },
+		{ 30.0, 0.0, 0.0, 0.0, 0.0, 31.5, 0.0, 0.0, 0.0, 0.775, 0.225, -1.0, 70.0, 50.0, 20.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+		{ 30.0, 0.0, 0.0, 0.0, 0.0, 31.5, 0.0, 0.0, 0.0, 0.775, 0.225, -1.0, 70.0, 50.0, 150.0, 0.0, 0.2, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+		{ 30.0, 0.0, 0.0, 30.0, 90.0, 31.5, 0.0, 0.0, 0.0, 0.775, 0.225, -1.0, 70.0, 50.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1*cosf(45), 0.1*sinf(45), 0.0, 0.0 },
+		{ 15.0, -75.0, 0.0, 30.0, 90.0, 31.5, 0.0, 5.25322, 8.50903, 0.775, 0.225, 1.0, 25.0, 130.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1*cosf(45), 0.1*sinf(45), 0.0, 0.0 },
+		{ 15.0, -75.0, 0.0, 30.0, 90.0, 31.5, 0.0, 10.5064, 17.0181, 0.775, 0.225, 1.0, 25.0, 130.0, 200.0, 0.375, -0.15, -0.9, 0.0, 0.0, 0.0, 0.0, 0.0 } };
 
 	for (float* p : parameters) {
 
@@ -664,36 +656,41 @@ void animate() {
 			babyTranslations[i] = p[6+i];
 		}
 
-		bezierPoints[0] = vec3(p[9], 0.0, p[10]);
+		bezierPoints[0] = vec3(0.0, p[9], p[10]);
 
 		glUniform1i(normalOrientation_GLSL, p[11]);
 
 		fovy = p[12];
-		eyePosition[0] = -40*p[13];
-		glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
+		cameraPosition[2] = p[13];
 	
-		for (int i = 0; i != p[14] + 1; i++) {
-		
+		for (int i = 0; i != p[14]; i++) {
+
 			auto start = chrono::high_resolution_clock::now();
 
-			uterusAngles[2] += p[15];
-			babyAngles[0] += p[16]*babyRotationDirection;
+			uterusAngles[1] += p[15];
+			babyAngles[0] += p[16];
+			babyAngles[1] += p[17];
+			babyAngles[2] += p[18] * babyRotationDirection;
 
-			if (babyAngles[0] > 35 || babyAngles[0] < -35) {
+			if (babyAngles[2] > 35 || babyAngles[2] < -10) {
 
 				babyRotationDirection = -babyRotationDirection;
 			}
 
-			bezierPoints[0] += vec3(p[17], 0, p[17]);
+			babyTranslations[0] += p[19];
+			babyTranslations[1] += p[20];
+			babyTranslations[2] += p[21];
 
-			fovy += p[18];
-			eyePosition[0] += -40*p[19];
-			glUniform3fv(uterusEyePosition_GLSL, 1, &eyePosition[0]);
+			bezierPoints[0] += vec3(0, p[22], -p[22]);
+
+			cameraPosition[2] += p[23];
 
 			display();
 
 			auto stop = chrono::high_resolution_clock::now();
 			this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
 		}
+
+		cout << babyTranslations[1] << ", " << babyTranslations[2] << endl;
 	}
 }

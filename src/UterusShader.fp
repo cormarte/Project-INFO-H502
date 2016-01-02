@@ -42,7 +42,7 @@ void main() {
 	vec4 diffuse = max(dot(N,L), 0.0) * gl_LightSource[0].diffuse * color; 
     
 	//Specular
-	vec4 specular = pow(max(dot(reflect(-L, N), V), 0.0), 32) * gl_LightSource[0].specular;
+	vec4 specular = pow(max(dot(reflect(-L, N), V), 0.0), 64) * gl_LightSource[0].specular;
 
 
 	//**************//

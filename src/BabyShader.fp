@@ -81,9 +81,9 @@ void main() {
 
 	//Wax 2
 	waxiness = 0.9f;
-	shininess = 64;
-	a = 2.65f;
-	d = 1.60f;
+	shininess = 128;
+	a = 2.5f;
+	d = 1.5f;
 	s = 0.15f;
 	silhouetteness = 0.75;
 	silhouettePow = 3;
