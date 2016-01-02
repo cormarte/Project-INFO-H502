@@ -20,7 +20,7 @@ static int g_window;
 
 //Textures
 GLuint textureIDs[2];
-const char* paths[2] = { "..//data//uterus.jpg", "..//data//uterus_bump.jpg" };
+const char* paths[2] = { "..//data//uterus_texture.jpg", "..//data//uterus_bump.jpg" };
 
 //Model
 vector<vec3> babyNormals;
