@@ -1,0 +1,10 @@
+varying vec3 vNormal;
+varying vec3 vLightVector;
+varying vec3 vViewVector;
+
+uniform vec3 eyePosition;
+
+void main() {
+
+	gl_Position = ftransform();
+}

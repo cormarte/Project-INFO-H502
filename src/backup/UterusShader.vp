@@ -1,0 +1,12 @@
+attribute vec3 gl_Tangent;
+
+uniform int orientation;
+
+varying vec2 vTextureCoordinates;
+varying vec3 vLightVector;
+varying vec3 vViewVector;
+
+void main() {
+
+	gl_Position = ftransform();
+}

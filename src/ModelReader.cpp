@@ -28,7 +28,7 @@ ModelReader* ModelReader::getInstance() {
 	return instance;
 }
 
-void ModelReader::readFile(char* path, vector<vec3> &vertices, vector<vec3> &normals) {
+void ModelReader::readFile(char* path, vector<vec3> &vertex, vector<vec3> &normals) {
 
 	int numberOfVertices;
 	int numberOfFaces;
@@ -81,9 +81,9 @@ void ModelReader::readFile(char* path, vector<vec3> &vertices, vector<vec3> &nor
 	
 		int x, a, b, c;
 		fscanf(file, "%i %i %i %i\n", &x, &a, &b, &c);
-		vertices.push_back(vertices_tmp[a]);
-		vertices.push_back(vertices_tmp[b]);
-		vertices.push_back(vertices_tmp[c]);
+		vertex.push_back(vertices_tmp[a]);
+		vertex.push_back(vertices_tmp[b]);
+		vertex.push_back(vertices_tmp[c]);
 		normals.push_back(normals_tmp[a]);
 		normals.push_back(normals_tmp[b]);
 		normals.push_back(normals_tmp[c]);

@@ -1,0 +1,5 @@
+//Light definition
+GLfloat lightPosition[4] = {0.0f, 75.0f, 50.0f, 1.0f};
+GLfloat ambient[4] = {0.45f, 0.45f, 0.45f, 1.0f};
+GLfloat diffuse[4] = {0.55f, 0.55f, 0.55f, 1.0f};
+GLfloat specular[4] = {1.0f, 1.0f, 1.0f, 1.0f};

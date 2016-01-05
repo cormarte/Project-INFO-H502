@@ -10,9 +10,9 @@ void main() {
 
 	vec3 vertexPosition = vec3(gl_ModelViewMatrix * gl_Vertex);
 	
-	vLightVector = vec3(gl_LightSource[0].position) - vertexPosition;
+	vLightVector = normalize(vec3(gl_LightSource[0].position) - vertexPosition);
 
-	vViewVector = -vertexPosition;
+	vViewVector = normalize(-vertexPosition);
 
 	gl_Position = ftransform();
 }

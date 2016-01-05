@@ -1,51 +1,54 @@
 #define _USE_MATH_DEFINES
+
 #include <windows.h>
+
 #include <chrono>
+#include <iostream>
+#include <math.h>
+#include <thread>
+
 #include <glew.h>
 #include <gl\gl.h>
 #include <gl\glu.h>
 #include <glut.h>
-#include <matrix_transform.hpp>
-#include <type_ptr.hpp>
-#include <iostream>
-#include <math.h>
+
 #include "ModelReader.h"
 #include "Shaders.h"
 #include "TextureReader.h"
-#include <thread>
 
 using namespace std;
 
+
+//Window
 static int g_window;
 
 //Textures
 GLuint textureIDs[2];
-const char* paths[2] = { "..//data//uterus_texture.jpg", "..//data//uterus_bump.jpg" };
+const char* texturePaths[2] = {"..//data//uterus_texture.jpg", "..//data//uterus_bump.jpg"};
 
 //Model
 vector<vec3> babyNormals;
-vector<vec3> babyVertices;
+vector<vec3> babyVertex;
 
-vector<vec3> cylinderNormals;
-vector<vec3> cylinderTangents;
-vector<vec2> cylinderTextureCoordinates;
-vector<vec3> cylinderVertices;
+vector<vec3> uterusNormals;
+vector<vec3> uterusTangents;
+vector<vec2> uterusTextureCoordinates;
+vector<vec3> uterusVertex;
 
 vector<vec3> bezierPoints;
 
-
 //Shaders
 GLuint uterusShaderProgram, babyShaderProgram;
-GLuint normalOrientation_GLSL;
+GLuint uterusNormalOrientation_GLSL;
 GLuint uterusTangent_GLSL;
 
 //Angles
-float babyAngles[3] = {0, 0, 0};
+float babyAngles[3];
 float uterusAngles[3] = {0, 0, 0};
 
-//Translation
-//float babyTranslations[3] = {0, 0, -5};
+//Translations
 float babyTranslations[3] = {0, 0, 0};
+float uterusTranslations[3];
 
 //Zoom
 float cameraPosition[3] = {0, 0, 15.0};
@@ -62,50 +65,62 @@ int yOld = 0;
 bool leftButtonPressed = false;
 bool rightButtonPressed = false;
 
+float t = 0.0;
+
 void createCylinder(int resolution) {
+
+	/*Defines vertex of a cylinder of radius 1 and height 2 centered at origin for a given resolution.
+	Cylinder axis is along the x-direction w.r.t. OpenGL coordinates system. The vertex enumeration a
+	lternates both upper and lower vertex for each value of the angle parameter theta, so that 
+	GL_TRIANGLE_STRIP can be applied on consecutive vertex to render the cylinder.
+	
+	Vertex are defined in a way that y coordinate is always negative for theta belongin to [0, pi],
+	so that the first half part of the uterusTextureCoordinates array describes the horizontal lower 
+	half of the cylinder with OpenGL coordinates system convention and a camera palced along the z-axis*/
+
 
 	for (int i = 0; i <= resolution; i++) {
 
-		float theta = (float)i*((2*M_PI) / (float)resolution);
+		float theta = (float)i*((2*M_PI)/(float)resolution);
 
 		vec3 normal;
 		normal.x = 0.0f;
 		normal.y = -sinf(theta);
 		normal.z = -cosf(theta);
-		
-		cylinderNormals.push_back(normal);
-		cylinderNormals.push_back(normal);
+		uterusNormals.push_back(normal); //Normals are stored only once for both upper and lower vertex
 
-		vec3 tangent = normalize(cross(normal, vec3(0, 1, 0)));
-		cylinderTangents.push_back(tangent);
+		vec3 tangent = normalize(cross(normal, vec3(-1, 0, 0)));
+		uterusTangents.push_back(tangent); //Tangents are perpendicular to normals and to cylinder axis
 
 		vec2 upperTextureCoordinate;
 		upperTextureCoordinate.x = (float)i*(1.0f/resolution);
-		upperTextureCoordinate.y = 0.0f;
-		cylinderTextureCoordinates.push_back(upperTextureCoordinate);
+		upperTextureCoordinate.y = 0.0f; //The left part of the texture is mapped on the upper part of the cylinder
+		uterusTextureCoordinates.push_back(upperTextureCoordinate);
 
 		vec2 lowerTextureCoordinate;
 		lowerTextureCoordinate.x = (float)i*(1.0f/resolution);
-		lowerTextureCoordinate.y = 1.0f;
-		cylinderTextureCoordinates.push_back(lowerTextureCoordinate);
+		lowerTextureCoordinate.y = 1.0f; //The right part of the texture is mapped on the lower part of the cylinder
+		uterusTextureCoordinates.push_back(lowerTextureCoordinate);
 
 		vec3 upperVertex;
-		upperVertex.x = 1.0;
+		upperVertex.x = 1.0; 
 		upperVertex.y = -sinf(theta);
 		upperVertex.z = -cosf(theta);
-		cylinderVertices.push_back(upperVertex);
+		uterusVertex.push_back(upperVertex);
 
 		vec3 lowerVertex;
 		lowerVertex.x = -1.0;
 		lowerVertex.y = -sinf(theta);
 		lowerVertex.z = -cosf(theta);
-		cylinderVertices.push_back(lowerVertex);
+		uterusVertex.push_back(lowerVertex);
 	}
 }
 
 void display() {
 
-	//Colour and Z-buffer clearing
+	/*Display function*/
+
+	//Color and z-buffer clearing
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//Projection
@@ -118,59 +133,76 @@ void display() {
 	glLoadIdentity();
 	gluLookAt(cameraPosition[0], cameraPosition[1], cameraPosition[2], 0, 0, 0, 0, 1, 0);
 	
-	//Rotation of both baby and uterus
+	//Translation of both baby and uterus, so that the result is equivalent to a camera translation in the opposite direction 
+	glTranslatef(uterusTranslations[0], uterusTranslations[1], uterusTranslations[2]);
+
+	//Rotation of both baby and uterus, so that the result is equivalent to a camera rotation in the opposite direction
 	glRotatef(uterusAngles[0], 1, 0, 0);
 	glRotatef(uterusAngles[1], 0, 1, 0);
 	glRotatef(uterusAngles[2], 0, 0, 1);
+
+	//Push the current state of the matrix
 	glPushMatrix();
 
+
+	//Baby translation
 	glTranslatef(babyTranslations[0], babyTranslations[1], babyTranslations[2]);
+
+	//Baby rotation
 	glRotatef(babyAngles[0], 1, 0, 0);
 	glRotatef(babyAngles[1], 0, 1, 0);
 	glRotatef(babyAngles[2], 0, 0, 1);
 
 	//Baby drawing
 	glUseProgram(babyShaderProgram);
+
 	glBegin(GL_TRIANGLES);
 
-	for (int i = 0; i != babyVertices.size(); i++) {
+	for (int i = 0; i != babyVertex.size(); i++) {
 
 		vec3 normal = babyNormals.at(i);
 		glNormal3f(normal.x, normal.y, normal.z);
 
-		vec3 vertex = babyVertices.at(i);
-		glVertex3f(vertex.x, vertex.y, vertex.z);
+		vec3 vertice = babyVertex.at(i);
+		glVertex3f(vertice.x, vertice.y, vertice.z);
 	}
 
 	glEnd();
 
-	//Axis scaling
+
+	//Pop the last state of the matrix
 	glPopMatrix();
+
+	//Uterus axis scaling
 	glScalef(18.0, 16.0, 16.0);
 		
 	glUseProgram(uterusShaderProgram);
 
-	//Cylinder caps drawing
+	//Uterus caps drawing
 	for (int i = 0; i != 2; i ++) {
 	
 		glBegin(GL_TRIANGLE_FAN);
 
-		float y = pow(-1, i);
+		float y = pow(-1, i); //Takes value in [-1,1] to discribe lower and upper cap
 
-		vec3 normal = normalize(vec3(y, 0.0, 0.0));
-		vec3 tangent = normalize(cross(normal, vec3(0.0, 0.0, 1.0)));
+		vec3 normal = normalize(vec3(y, 0.0, 0.0)); //All normals of the cap point outwards along the x-axis
+		vec3 tangent = normalize(cross(normal, vec3(0.0, 0.0, 1.0))); //All tangents of the caps are perpendicular to both normals and z-axis
 
-		//Non-Bezier half
+		//Cylinder half caps
+		/*Uterus body is made of a half cylinder and a bezier surface, so does the caps*/
 		glNormal3f(normal.x, normal.y, normal.z);
-		glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
-		glTexCoord2f(0.5, 0.5);
-		glVertex3f(y, 0.0, 0.0);
+		glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]); //Tangent is needed for bump mapping
+		glTexCoord2f(0.5, 0.5);  //Central pixel of the texture
+		glVertex3f(y, 0.0, 0.0); //Central point of the cap
 		
-		for (int j = 0; j < cylinderVertices.size()/4+2; j += 2) {
+		for (int j = 0; j < uterusVertex.size()/4+2; j += 2) { //Iterate on half vertex of half the array
 
-			vec3 vertex = cylinderVertices.at(2 * j + i);
+			vec3 vertex = uterusVertex.at(2 * j + i); //Upper and lower vertex are alternated
 			vec2 textureCoordinates;
-			textureCoordinates.x = 0.5 + (36.0 / (2 * M_PI * 16)) * 0.5 * vertex.y;
+			/*y and z vertex coordinates describe a circle of radius 1, so they can be used to define a circle
+			on the texture to be mapped on the vertex. Radius in x direction need to be scaled because texture
+			width is greater than its height.*/
+			textureCoordinates.x = 0.5 + (36.0/(2*M_PI*16)) * 0.5 * vertex.y;
 			textureCoordinates.y = 0.5 + 0.5 * vertex.z;
 
 			glNormal3f(normal.x, normal.y, normal.z);
@@ -179,8 +211,8 @@ void display() {
 			glVertex3f(vertex.x, vertex.y, vertex.z);
 		}
 
-		//Bezier half
-		vec3 point1 = vec3(y, 0.0, 1.0);
+		//Bezier half capes
+		vec3 point1 = vec3(y, 0.0, 1.0); //Bezier points a redifined here because thee caps don't move with the upper surface
 		vec3 point2 = vec3(y, 1.3333, 1.0);
 		vec3 point3 = vec3(y, 1.3333, -1.0);
 		vec3 point4 = vec3(y, 0.0, -1.0);
@@ -188,12 +220,14 @@ void display() {
 		for (int j = 0; j != 101; j++) {
 
 			float u = j / 100.0f;
-			vec3 vertex = (1 - 3 * u + 3 * pow(u, 2) - pow(u, 3))*point1 + (3 * u - 6 * pow(u, 2) + 3 * pow(u, 3))*point2 + (3 * pow(u, 2) - 3 * pow(u, 3))*point3 + pow(u, 3)*point4;
+			vec3 vertex = (-pow(u, 3) + 3*pow(u, 2) - 3*u + 1)*point1 + (3*pow(u, 3) - 6*pow(u, 2) + 3*u)*point2 + (-3*pow(u, 3) + 3*pow(u, 2))*point3 + pow(u, 3)*point4;
 
 			vec2 textureCoordinates;
-			textureCoordinates.x = 0.5 + (36.0 / (2 * M_PI * 16)) * 0.5 * vertex.y;
+			/*y and z vertex coordinates describe a circle of radius 1, so they can be used to define a circle
+			on the texture to be mapped on the vertex. Radius in x direction need to be scaled because texture
+			width is greater than its height.*/
+			textureCoordinates.x = 0.5 + (36.0/(2*M_PI*16)) * 0.5 * vertex.y;
 			textureCoordinates.y = 0.5 + 0.5 * vertex.z;
-
 
 			glNormal3f(normal.x, normal.y, normal.z);
 			glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
@@ -205,15 +239,17 @@ void display() {
 	}
 
 	//Cylinder body drawing
+
 	//Non-Bezier half
+	/*Uterus body is made of a half cylinder and a bezier surface*/
 	glBegin(GL_TRIANGLE_STRIP);
 	
-	for (int i = 0; i != cylinderVertices.size()/2+1; i++) {
+	for (int i = 0; i != uterusVertex.size()/2+1; i++) { //Iterate on half the array
 
-		vec3 normal = cylinderNormals.at(i);
-		vec3 tangent = normalize(cross(normal, vec3(-1, 0, 0)));
-		vec2 textureCoordinate = cylinderTextureCoordinates.at(i);
-		vec3 vertex = cylinderVertices.at(i);
+		vec3 normal = uterusNormals.at(i/2);
+		vec3 tangent = uterusTangents.at(i/2);
+		vec2 textureCoordinate = uterusTextureCoordinates.at(i);
+		vec3 vertex = uterusVertex.at(i);
 		
 		glNormal3f(normal.x, normal.y, normal.z);
 		glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
@@ -229,25 +265,27 @@ void display() {
 	for (int i = 0; i != 101; i++) {
 
 		float u = i / 100.0f;
-		vec3 tangent = normalize((-3 * pow(u, 2) + 6 * u - 3)*bezierPoints[0] + (9 * pow(u, 2) - 12 * u + 3)*bezierPoints[1] + (-9 * pow(u, 2) + 6 * u)*bezierPoints[2] + (3 * pow(u, 2))*bezierPoints[3]);
-		vec3 normal = cross(tangent, vec3(-1, 0, 0));
-		vec3 vertex = (1 - 3 * u + 3 * pow(u, 2) - pow(u, 3))*bezierPoints[0] + (3 * u - 6 * pow(u, 2) + 3 * pow(u, 3))*bezierPoints[1] + (3 * pow(u, 2) - 3 * pow(u, 3))*bezierPoints[2] + pow(u, 3)*bezierPoints[3];
-		tangent *= -1.0f;
+		/*Tangent is the curve derivative*/
+		vec3 tangent = normalize((-3*pow(u, 2) + 6*u - 3)*bezierPoints[0] + (9*pow(u, 2) - 12*u + 3)*bezierPoints[1] + (-9*pow(u, 2) + 6*u)*bezierPoints[2] + (3*pow(u, 2))*bezierPoints[3]);
+		vec3 normal = cross(tangent, vec3(-1, 0, 0)); //Normal is perpendicular to both tangent and cylinder axis
+		vec3 vertex = (-pow(u, 3) + 3*pow(u, 2) - 3*u + 1)*bezierPoints[0] + (3*pow(u, 3) - 6*pow(u, 2) + 3*u)*bezierPoints[1] + (-3*pow(u, 3) + 3*pow(u, 2))*bezierPoints[2] + pow(u, 3)*bezierPoints[3];
+		tangent *= -1.0f; //Invert tangents to point in the same direction as the cylinder ones
 
 		glNormal3f(normal.x, normal.y, normal.z);
 		glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
-		glTexCoord2f(0.5f + u / 2, 1.0f);
-		glVertex3f(vertex.x - 1, vertex.y, vertex.z);
+		glTexCoord2f(0.5f + u/2, 1.0f); //Mapping begins at 0.5, where half cylinder mapping ended
+		glVertex3f(vertex.x-1, vertex.y, vertex.z);
 
 		glNormal3f(normal.x, normal.y, normal.z);
 		glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
-		glTexCoord2f(0.5f + u / 2, 0.0f);
+		glTexCoord2f(0.5f + u/2, 0.0f); //Mapping begins at 0.5, where half cylinder mapping ended
 		glVertex3f(vertex.x + 1, vertex.y, vertex.z);
 	}
 
 	glEnd();
 
-	//Normals drawing
+
+	//Normals drawing (debug)
 	/*glBegin(GL_LINES);
 	
 	for (int i = 0; i != cylinderVertices.size()/2+1; i++) {
@@ -282,14 +320,12 @@ void display() {
 	glFlush();
 }
 
-void init()
-{
-	//Glew initialization
-	glewInit();
+void glInit() {
 
-	//Background colour definition
+	/*OpenGL initialization*/
+
+	//White background
 	glClearColor(1.0, 1.0, 1.0, 1.0);
-	//glClearColor(0.2902, 0.0314, 0.0353, 1.0);
 
 	//Shading mode definition
 	glShadeModel(GL_SMOOTH);
@@ -314,7 +350,7 @@ void init()
 	for (int i = 0; i != 2; i++) {
 
 		int width, height;
-		GLubyte* texture = TextureReader::getInstance()->readFile(paths[i], width, height);
+		GLubyte* texture = TextureReader::getInstance()->readFile(texturePaths[i], width, height);
 
 		glBindTexture(GL_TEXTURE_2D, textureIDs[i]);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -327,23 +363,18 @@ void init()
 	}
 
 	//Baby model loading
-	ModelReader::getInstance()->readFile("..//data//baby_model.ply", babyVertices, babyNormals);
+	ModelReader::getInstance()->readFile("..//data//baby_model.ply", babyVertex, babyNormals);
 
 	//Cylinder creation
 	createCylinder(200);
 
-	//Bezier initialization
+	//Bezier control points
 	bezierPoints.push_back(vec3(0.0, 0.0, 1.0));
 	bezierPoints.push_back(vec3(0.0, 1.3333, 1.0));
 	bezierPoints.push_back(vec3(0.0, 1.3333, -1.0));
 	bezierPoints.push_back(vec3(0.0, 0.0, -1.0));
 
 	//Light definition
-	/*GLfloat lightPosition[4] = {0.0f, 75.0f, 50.0f, 1.0f};
-	GLfloat ambient[4] = {0.45f, 0.45f, 0.45f, 1.0f};
-	GLfloat diffuse[4] = {0.55f, 0.55f, 0.55f, 1.0f};
-	GLfloat specular[4] = {1.0f, 1.0f, 1.0f, 1.0f};*/
-
 	GLfloat lightPosition[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	GLfloat ambient[4] = { 0.35f, 0.35f, 0.35f, 1.0f };
 	GLfloat diffuse[4] = { 0.55f, 0.55f, 0.55f, 1.0f };
@@ -361,17 +392,17 @@ void init()
 	fragmentShader = initshaders(GL_FRAGMENT_SHADER, "UterusShader.fp");
 	uterusShaderProgram = initprogram(vertexShader, fragmentShader);
 
+	uterusNormalOrientation_GLSL = glGetUniformLocation(uterusShaderProgram, "orientation");
+	glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);	
+
 	uterusTangent_GLSL = glGetAttribLocation(uterusShaderProgram, "gl_Tangent");
 
-	normalOrientation_GLSL = glGetUniformLocation(uterusShaderProgram, "orientation");
-	glUniform1i(normalOrientation_GLSL, normalOrientation);	
-
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE0); //Color texture
 	glBindTexture(GL_TEXTURE_2D, textureIDs[0]);
 	int texture_GLSL = glGetUniformLocation(uterusShaderProgram, "texture");
 	glUniform1i(texture_GLSL, 0);
 
-	glActiveTexture(GL_TEXTURE1);
+	glActiveTexture(GL_TEXTURE1); //Bump map
 	glBindTexture(GL_TEXTURE_2D, textureIDs[1]);
 	int bumpMap_GLSL = glGetUniformLocation(uterusShaderProgram, "bumpMap");
 	glUniform1i(bumpMap_GLSL, 1);
@@ -381,134 +412,234 @@ void init()
 	fragmentShader = initshaders(GL_FRAGMENT_SHADER, "BabyShader.fp");
 	babyShaderProgram = initprogram(vertexShader, fragmentShader);
 
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE0); //Uterus color texture used for reflection
 	glBindTexture(GL_TEXTURE_2D, textureIDs[0]);
 	int environment_GLSL = glGetUniformLocation(babyShaderProgram, "environment");
 	glUniform1i(environment_GLSL, 0);
 }
 
-void animate();
+void animate(); //Defined at the end of the file
 
-void keyboard(unsigned char key, int x, int y) {
+void keyboardFunc(unsigned char key, int x, int y) {
+
+	/*Keyboard function*/
 
 	switch (key) {
 
+
+	//Animation
+
 	case 'a':
-		babyAngles[0] -= 5;
+		animate();
 		break;
 
-	case 'z':
+	case 'A':
+		animate();
+		break;
+
+
+	//Baby rotation
+
+	case 'x':
 		babyAngles[0] += 5;
 		break;
 
-	case 'e':
-		babyAngles[1] -= 5;
-		break;
-
-	case 'r':
-		babyAngles[1] += 5;
-		break;
-
-	case 't':
-		babyAngles[2] -= 5;
+	case 'X':
+		babyAngles[0] -= 5;
 		break;
 
 	case 'y':
+		babyAngles[1] += 5;
+		break;
+
+	case 'Y':
+		babyAngles[1] -= 5;
+		break;
+
+	case 'z':
 		babyAngles[2] += 5;
 		break;
 
+	case 'Z':
+		babyAngles[2] -= 5;
+		break;
+
+
+	//Baby and uterus translation, equivalent to camera translation in the opposite direction
+
+	case 'l':
+		uterusTranslations[0] += 2;
+		break;
+
+	case 'L':
+		uterusTranslations[0] += 2;
+		break;
+
+	case 'r':
+		uterusTranslations[0] -= 2;
+		break;
+
+	case 'R':
+		uterusTranslations[0] -= 2;
+		break;
+
 	case 'u':
-		babyTranslations[1] += 0.25;
+		uterusTranslations[1] -= 2;
 		break;
 
-	case 'i':
-		babyTranslations[1] -= 0.25;
-		break;
-
-	case 'q':
-		uterusAngles[0] -= 5;
-		break;
-
-	case 's':
-		uterusAngles[0] += 5;
+	case 'U':
+		uterusTranslations[1] -= 2;
 		break;
 
 	case 'd':
-		uterusAngles[1] -= 5;
+		uterusTranslations[1] += 2;
 		break;
 
-	case 'f':
-		uterusAngles[1] += 5;
+	case 'D':
+		uterusTranslations[1] += 2;
 		break;
 
-	case 'g':
-		uterusAngles[2] -= 5;
-		break;
 
-	case 'h':
-		uterusAngles[2] += 5;
-		break;
+	//Zoom
 
-	case 'w':
+	case 'i':
+
 		cameraPosition[2] /= 1.1;
-		cout << "Cam: " << cameraPosition[2] << endl;
 
-		if (cameraPosition[2] > 16.95 && cameraPosition[2] < 30) {
+		if (cameraPosition[2] > 16.95 && cameraPosition[2] < 34) {
 
 			cameraPosition[2] = 16.95;
 			normalOrientation = -1;
-			glUniform1i(normalOrientation_GLSL, normalOrientation);
+			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		}
 
 		break;
 
-	case 'x':
-		cameraPosition[2] *= 1.1;
-		cout << "Cam: " << cameraPosition[2] << endl;
+	case 'I':
 
-		if (cameraPosition[2] > 16.95 && cameraPosition[2] < 30) {
+		cameraPosition[2] /= 1.1;
 
-			cameraPosition[2] = 30;
+		if (cameraPosition[2] > 16.95 && cameraPosition[2] < 34) {
+
+			cameraPosition[2] = 16.95;
 			normalOrientation = -1;
-			glUniform1i(normalOrientation_GLSL, normalOrientation);
+			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		}
 
 		break;
 
-	case 'c':
-		fovy -= 1;
-		cout << "FOV: " << fovy << endl;
+	case 'o':
+
+		cameraPosition[2] *= 1.1;
+
+		if(cameraPosition[2] > 16.85 && cameraPosition[2] < 34) {
+
+			cameraPosition[2] = 34;
+			normalOrientation = 1;
+			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
+		}
+
 		break;
 
-	case 'v':
-		fovy += 1;
-		cout << "FOV: " << fovy << endl;
+	case 'O':
+
+		cameraPosition[2] *= 1.1;
+
+		if (cameraPosition[2] > 16.85 && cameraPosition[2] < 34) {
+
+			cameraPosition[2] = 34;
+			normalOrientation = 1;
+			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
+		}
+
 		break;
 
-	case 'b':
-		bezierPoints[0] += vec3(0.0, 0.05, -0.05);
-		//bezierPoints[1] -= vec3(0.01, 0, 0.01);
+
+	//Baby and uterus rotation, equivalent to camera rotation in the opposite direction
+
+	case '1':
+		uterusAngles[0] -= 5;
 		break;
 
-	case 'n':
-		bezierPoints[0] -= vec3(0.0, 0.05, -0.05);
-		//bezierPoints[1] += vec3(0.01, 0, 0.01);
+	case '3':
+		uterusAngles[0] += 5;
 		break;
 
-	case 'm':
-		normalOrientation = -normalOrientation;
-		glUniform1i(normalOrientation_GLSL, normalOrientation);
+	case '4':
+		uterusAngles[1] -= 5;
 		break;
+
+	case '6':
+		uterusAngles[1] += 5;
+		break;
+
+	case '7':
+		uterusAngles[2] -= 5;
+		break;
+
+	case '9':
+		uterusAngles[2] += 5;
+		break;
+
+
+	//FoV
 
 	case 'p':
-		animate();
+		fovy -= 1;
+		break;
+
+	case 'P':
+		fovy += 1;
+		break;
+
+
+	//Bezier
+
+	case 'b':
+		
+		t += 0.01;
+
+		if (t > 1.0) {
+
+			t = 1.0;
+		}
+
+		bezierPoints[0] = vec3(0.0, 0.0, 1.0)*(1.0f-t) + vec3(0.0, 0.85, 0.0)*t;
+		//bezierPoints[0] += vec3(0.0, 0.05, -0.05);
+		break;
+
+	case 'B':
+		t -= 0.01;
+
+		if (t < 0.0) {
+
+			t = 0.0;
+		}
+
+		bezierPoints[0] = vec3(0.0, 0.0, 1.0)*(1.0f - t) + vec3(0.0, 0.85, 0.0)*t;
+		//bezierPoints[0] -= vec3(0.0, 0.05, -0.05);
+		break;
+
+
+	//Normal orientation
+
+	case 'n':
+		normalOrientation = -normalOrientation;
+		glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
+		break;
+
+	case 'N':
+		normalOrientation = -normalOrientation;
+		glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		break;
 	}
 
 	display();
 }
 
-void mouse(int button, int state, int x, int y) {
+void mouseFunc(int button, int state, int x, int y) {
+
+	/*Mouse function*/
 
 	if (button == GLUT_LEFT_BUTTON) {
 
@@ -548,7 +679,7 @@ void mouse(int button, int state, int x, int y) {
 
 			cameraPosition[2] = 16.85;
 			normalOrientation = -1;
-			glUniform1i(normalOrientation_GLSL, normalOrientation);
+			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		}
 
 		display();
@@ -562,14 +693,16 @@ void mouse(int button, int state, int x, int y) {
 
 			cameraPosition[2] = 34;
 			normalOrientation = 1;
-			glUniform1i(normalOrientation_GLSL, normalOrientation);
+			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		}
 
 		display();
 	}
 }
 
-void mouseMotion(int x, int y) {
+void motionFunc(int x, int y) {
+
+	/*Motion function*/
 
 	if (leftButtonPressed || rightButtonPressed) {
 
@@ -596,7 +729,7 @@ void mouseMotion(int x, int y) {
 	}
 }
 
-void reshape(int w, int h) {
+void reshapeFunction(int w, int h) {
 
 	glViewport(0, 0, (GLsizei)w, (GLsizei)h);
 
@@ -614,20 +747,25 @@ int main(int argc, char *argv[]) {
 	glutInitWindowSize(960, 540);
 	glutInitWindowPosition(100, 100);
 	g_window = glutCreateWindow("Baby Project");
-	init();
+
+	glewInit();
+	glInit();
+
 	glutDisplayFunc(display);
-	glutReshapeFunc(reshape);
-	glutKeyboardFunc(keyboard);
-	glutMouseFunc(mouse);
-	glutMotionFunc(mouseMotion);
+	glutReshapeFunc(reshapeFunction);
+	glutKeyboardFunc(keyboardFunc);
+	glutMouseFunc(mouseFunc);
+	glutMotionFunc(motionFunc);
+
 	glutMainLoop();
+	
 	return 0;
 }
 
 void animate() {
 
-	int frameRate = 60;
-	int frameDuration = (1.0 / frameRate) * 1000;
+	int frameRate = 200;
+	int frameDuration = (1.0 / frameRate) * 1000000000;
 
 	int babyRotationDirection = 1;
 
@@ -645,7 +783,9 @@ void animate() {
 		{ 30.0, 0.0, 0.0, 0.0, 0.0, 31.5, 0.0, 0.0, 0.0, 0.775, 0.225, -1.0, 70.0, 50.0, 150.0, 0.0, 0.2, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
 		{ 30.0, 0.0, 0.0, 30.0, 90.0, 31.5, 0.0, 0.0, 0.0, 0.775, 0.225, -1.0, 70.0, 50.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1*cosf(45), 0.1*sinf(45), 0.0, 0.0 },
 		{ 15.0, -75.0, 0.0, 30.0, 90.0, 31.5, 0.0, 5.25322, 8.50903, 0.775, 0.225, 1.0, 25.0, 130.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1*cosf(45), 0.1*sinf(45), 0.0, 0.0 },
-		{ 15.0, -75.0, 0.0, 30.0, 90.0, 31.5, 0.0, 10.5064, 17.0181, 0.775, 0.225, 1.0, 25.0, 130.0, 200.0, 0.375, -0.15, -0.9, 0.0, 0.0, 0.0, 0.0, 0.0 } };
+		{ 15.0, -75.0, 0.0, 30.0, 90.0, 31.5, 0.0, 10.5064, 17.0181, 0.775, 0.225, 1.0, 25.0, 130.0, 200.0, 0.375, -0.15, -0.9, 0.0, 0.0, 0.0, 0.0, 0.0 } 
+	
+	};
 
 	for (float* p : parameters) {
 
@@ -658,7 +798,7 @@ void animate() {
 
 		bezierPoints[0] = vec3(0.0, p[9], p[10]);
 
-		glUniform1i(normalOrientation_GLSL, p[11]);
+		glUniform1i(uterusNormalOrientation_GLSL, p[11]);
 
 		fovy = p[12];
 		cameraPosition[2] = p[13];
@@ -688,9 +828,7 @@ void animate() {
 			display();
 
 			auto stop = chrono::high_resolution_clock::now();
-			this_thread::sleep_for(std::chrono::milliseconds(frameDuration) - chrono::duration_cast<chrono::milliseconds>(stop - start));
+			this_thread::sleep_for(std::chrono::nanoseconds(frameDuration - std::chrono::duration<int, std::nano>(stop - start).count()));
 		}
-
-		cout << babyTranslations[1] << ", " << babyTranslations[2] << endl;
 	}
 }

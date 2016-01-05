@@ -84,7 +84,7 @@ void main() {
 	shininess = 128;
 	a = 2.5f;
 	d = 1.5f;
-	s = 0.15f;
+	s = 0.45f;
 	silhouetteness = 0.75;
 	silhouettePow = 3;
 
@@ -100,7 +100,7 @@ void main() {
 	vec4 diffuse = (waxiness + (1-waxiness)*max(dot(N,L), 0.0)) * gl_LightSource[0].diffuse * color; 
     
 	//Specular
-	vec4 specular = pow(max(dot(reflect(-L, N), V), 0.0), shininess) * gl_LightSource[0].specular;
+	vec4 specular = pow(max(dot(reflect(-L, N), V), 0.0), shininess) * gl_LightSource[0].specular * color;
 
 
 	//************//
