@@ -1,4 +1,4 @@
-attribute vec3 gl_Tangent;
+attribute vec3 glTangent;
 
 uniform int orientation;
 
@@ -9,19 +9,28 @@ varying vec3 vViewVector;
 void main() {
 
 	vTextureCoordinates = gl_MultiTexCoord0.xy;
-
+	
+	//Computes normal, tangent and binormal in view space to define the local tangent space used for bump mapping
+	//orientation is used to light either the inside or the outside of the uterus
 	vec3 normal = normalize(gl_NormalMatrix * gl_Normal * orientation);
-	vec3 tangent = normalize(gl_NormalMatrix * gl_Tangent);
+	vec3 tangent = normalize(gl_NormalMatrix * glTangent);
 	vec3 binormal = cross(normal, tangent);
 
+	//Vertex position in view space
 	vec3 vertexPosition = vec3(gl_ModelViewMatrix * gl_Vertex);
 
+	//Light vector in view space
 	vec3 lightDirection = (vec3(gl_LightSource[0].position) - vertexPosition);
+
+	//Light vector in tangent space
 	vLightVector.x = dot(lightDirection, tangent);
 	vLightVector.y = dot(lightDirection, binormal);
 	vLightVector.z = dot(lightDirection, normal);
 
+	//View vector in view space. Camera is at (0.0, 0.0, 0.0) in view space
 	vec3 eyeDirection = -vertexPosition;
+
+	//View vector in tangent space
 	vViewVector.x = dot(eyeDirection, tangent);
 	vViewVector.y = dot(eyeDirection, binormal);
 	vViewVector.z = dot(eyeDirection, normal);

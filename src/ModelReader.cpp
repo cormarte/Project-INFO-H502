@@ -1,12 +1,15 @@
 #define _CRT_SECURE_NO_DEPRECATE
-#include "ModelReader.h"
+
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
 
+#include "ModelReader.h"
+
 using namespace std;
 using namespace glm;
+
 
 ModelReader* ModelReader::instance = 0;
 
@@ -28,7 +31,9 @@ ModelReader* ModelReader::getInstance() {
 	return instance;
 }
 
-void ModelReader::readFile(char* path, vector<vec3> &vertex, vector<vec3> &normals) {
+void ModelReader::readFile(char* path, vector<vec3> &vertices, vector<vec3> &normals) {
+
+	/* Reads a stl file and stores vertex coordinates and normals in so-called vectors. Note that vertex attributes must be (x y z nx ny nz) */
 
 	int numberOfVertices;
 	int numberOfFaces;
@@ -68,8 +73,7 @@ void ModelReader::readFile(char* path, vector<vec3> &vertex, vector<vec3> &norma
 
 	for (int i = 0; i < numberOfVertices; i++) {
 	
-		vec3 vertex;
-		vec3 normal;
+		vec3 vertex, normal;
 
 		fscanf(file, "%f %f %f %f %f %f\n", &vertex.x, &vertex.y, &vertex.z, &normal.x, &normal.y, &normal.z);
 
@@ -80,10 +84,12 @@ void ModelReader::readFile(char* path, vector<vec3> &vertex, vector<vec3> &norma
 	for (int i = 0; i < numberOfFaces; i++) {
 	
 		int x, a, b, c;
+
 		fscanf(file, "%i %i %i %i\n", &x, &a, &b, &c);
-		vertex.push_back(vertices_tmp[a]);
-		vertex.push_back(vertices_tmp[b]);
-		vertex.push_back(vertices_tmp[c]);
+
+		vertices.push_back(vertices_tmp[a]);
+		vertices.push_back(vertices_tmp[b]);
+		vertices.push_back(vertices_tmp[c]);
 		normals.push_back(normals_tmp[a]);
 		normals.push_back(normals_tmp[b]);
 		normals.push_back(normals_tmp[c]);

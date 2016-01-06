@@ -1,10 +1,14 @@
 #include <windows.h>
+
+#include <vector>
+
 #include <gl\GL.h>
 #include <glm.hpp>
-#include <vector>
+
 
 using namespace glm;
 using namespace std;
+
 
 class ModelReader {
 
