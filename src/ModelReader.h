@@ -5,7 +5,6 @@
 #include <gl\GL.h>
 #include <glm.hpp>
 
-
 using namespace glm;
 using namespace std;
 

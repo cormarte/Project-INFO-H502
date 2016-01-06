@@ -1,7 +1,9 @@
 #include <windows.h>
+
 #include <gl\GL.h>
 
 using namespace std;
+
 
 class TextureReader {
 

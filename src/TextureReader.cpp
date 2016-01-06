@@ -1,5 +1,10 @@
-#include "TextureReader.h"
+#include <windows.h>
+
+#include <gl\GL.h>
 #include <FreeImage.h>
+
+#include "TextureReader.h"
+
 
 TextureReader* TextureReader::instance = 0;
 
@@ -22,6 +27,8 @@ TextureReader* TextureReader::getInstance() {
 }
 
 GLubyte* TextureReader::readFile(const char* path, int &imageWidth, int &imageHeight) {
+
+	/* Reads an image file, stores image width and height in the so-called variables and returns a GLubyte* pixel values array. */
 
 	FREE_IMAGE_FORMAT format = FreeImage_GetFileType(path, 0);
 	FIBITMAP* image_tmp = FreeImage_Load(format, path);

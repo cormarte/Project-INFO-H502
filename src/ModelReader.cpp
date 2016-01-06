@@ -33,7 +33,8 @@ ModelReader* ModelReader::getInstance() {
 
 void ModelReader::readFile(char* path, vector<vec3> &vertices, vector<vec3> &normals) {
 
-	/* Reads a stl file and stores vertex coordinates and normals in so-called vectors. Note that vertex attributes must be (x y z nx ny nz) */
+	/* Reads a stl file and stores vertices coordinates and normals in the so-called vectors. 
+	Note that vertices attributes in the file must be (x y z nx ny nz). */
 
 	int numberOfVertices;
 	int numberOfFaces;

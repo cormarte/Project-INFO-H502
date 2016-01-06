@@ -11,6 +11,7 @@
 #include <gl\gl.h>
 #include <gl\glu.h>
 #include <glut.h>
+#include <type_ptr.hpp>
 
 #include "ModelReader.h"
 #include "Shaders.h"
@@ -41,28 +42,26 @@ vector<vec3> bezierPoints;
 GLuint uterusShaderProgram, babyShaderProgram;
 GLuint uterusNormalOrientation_GLSL;
 GLuint uterusTangent_GLSL;
-int babyReflection_GLSL;
+GLuint babyReflection_GLSL;
 
 //Lighting
+vector<vec4> lightPositions;
 int normalOrientation;
 float babyReflection;
 
-//Angles
+//Camera
+float cameraAngles[3];
+float cameraTranslations[3];
+
+//Baby
 float babyAngles[3];
-float uterusAngles[3];
-
-//Translations
 float babyTranslations[3];
-float uterusTranslations[3];
-
-//Bezier opening
-float t;
-
-//Zoom
-float cameraPosition[3];
 
 //Perspective
 float fovy;
+
+//Bezier opening
+float t;
 
 //Trackball
 int xOld = 0;
@@ -85,33 +84,30 @@ void varInit() {
 
 	for (int i=0; i != 3; i++) {
 	
+		cameraAngles[i] = 0;
+		cameraTranslations[i] = 0;
+
 		babyAngles[i] = 0;
-		uterusAngles[i] = 0;
 		babyTranslations[i] = 0;
-		uterusTranslations[i] = 0;
 	}
+
+	fovy = 75;
 
 	t = 0.0;
 	bezierPoints[0] = vec3(0.0, 0.0, 1.0)*(1.0f - t) + vec3(0.0, 0.85, 0.0)*t;
-
-	cameraPosition[0] = 0;
-	cameraPosition[1] = 0;
-	cameraPosition[2] = 15;
-
-	fovy = 75;
 }
 
 
 void createCylinder(int resolution) {
 
-	/* Defines vertices of a cylinder of radius 1 and height 2 centered at origin for a given resolution.
-	Cylinder axis is along the x-direction in OpenGL coordinates system. The vertics enumeration alternates 
-	both upper and lower vertices for each value of the angle parameter theta, so that GL_TRIANGLE_STRIP can 
-	be applied on consecutive vertices to render the cylinder.
+	/* Defines the vertices of a cylinder of radius 1 and height 2 centered at the origin for a given resolution.
+	Cylinder axis is along the x-direction in OpenGL coordinates system. The vertices enumeration alternates 
+	upper and lower vertices for each value of the angle parameter theta, so that GL_TRIANGLE_STRIP can be applied 
+	on consecutive vertices to render the cylinder.
 	
 	Vertices are defined in a way that y coordinate is always negative for theta belongin to [0, pi],
 	so that the first half part of the uterusTextureCoordinates array describes the horizontal lower 
-	half of the cylinder with OpenGL coordinates system convention and a camera palced along the z-axis */
+	half of the cylinder with OpenGL coordinates system convention and a camera placed along the z-axis */
 
 
 	for (int i = 0; i <= resolution; i++) {
@@ -132,14 +128,14 @@ void createCylinder(int resolution) {
 
 		//The left part of the texture is mapped on the upper part of the cylinder
 		vec2 upperTextureCoordinate;
-		upperTextureCoordinate.x = (float)i*(1.0f/resolution);
-		upperTextureCoordinate.y = 0.0f; 
+		upperTextureCoordinate.s = (float)i*(1.0f/resolution);
+		upperTextureCoordinate.t = 0.0f; 
 		uterusTextureCoordinates.push_back(upperTextureCoordinate);
 
 		//The right part of the texture is mapped on the lower part of the cylinder
 		vec2 lowerTextureCoordinate;
-		lowerTextureCoordinate.x = (float)i*(1.0f/resolution);
-		lowerTextureCoordinate.y = 1.0f;
+		lowerTextureCoordinate.s = (float)i*(1.0f/resolution);
+		lowerTextureCoordinate.t = 1.0f;
 		uterusTextureCoordinates.push_back(lowerTextureCoordinate);
 
 		vec3 upperVertex;
@@ -212,15 +208,20 @@ void glInit() {
 	bezierPoints.push_back(vec3(0.0, 0.0, -1.0));
 
 	//Light definition
-	GLfloat lightPosition[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	lightPositions.push_back(vec4(10.0f, 0.0f, 10.0f, 1.0f));
+	lightPositions.push_back(vec4(0.0f, 10.0f, 0.0f, 1.0f));
+	lightPositions.push_back(vec4(-10.0f, 0.0f, -10.0f, 1.0f));
+
 	GLfloat ambient[4] = { 0.35f, 0.35f, 0.35f, 1.0f };
 	GLfloat diffuse[4] = { 0.55f, 0.55f, 0.55f, 1.0f };
 	GLfloat specular[4] = { 0.9f, 0.9f, 0.9f, 1.0f };
 
-	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, specular);
+	for (int i = 0; i != lightPositions.size(); i++) {
+
+		glLightfv(GL_LIGHT0+i, GL_AMBIENT, ambient);
+		glLightfv(GL_LIGHT0+i, GL_DIFFUSE, diffuse);
+		glLightfv(GL_LIGHT0+i, GL_SPECULAR, specular);
+	}
 
 
 	//***************//
@@ -232,6 +233,8 @@ void glInit() {
 	vertexShader = initshaders(GL_VERTEX_SHADER, "UterusShader.vp");
 	fragmentShader = initshaders(GL_FRAGMENT_SHADER, "UterusShader.fp");
 	uterusShaderProgram = initprogram(vertexShader, fragmentShader);
+
+	glUseProgram(uterusShaderProgram);
 
 	uterusNormalOrientation_GLSL = glGetUniformLocation(uterusShaderProgram, "orientation");
 	glUniform1i(uterusNormalOrientation_GLSL, -1);
@@ -259,6 +262,8 @@ void glInit() {
 	fragmentShader = initshaders(GL_FRAGMENT_SHADER, "BabyShader.fp");
 	babyShaderProgram = initprogram(vertexShader, fragmentShader);
 
+	glUseProgram(babyShaderProgram);
+
 	babyReflection_GLSL = glGetUniformLocation(babyShaderProgram, "reflection");
 	glUniform1f(babyReflection_GLSL, 0.35);
 
@@ -285,24 +290,34 @@ void display() {
 	//Camera positionning
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	gluLookAt(cameraPosition[0], cameraPosition[1], cameraPosition[2], 0, 0, 0, 0, 1, 0);
+	gluLookAt(0, 0, 15, 0, 0, 0, 0, 1, 0);
 	
-	//Translation of both baby and uterus, so that the result is equivalent to a camera translation in the opposite direction 
-	glTranslatef(uterusTranslations[0], uterusTranslations[1], uterusTranslations[2]);
+	//Camera translations and zoom
+	glTranslatef(cameraTranslations[0], cameraTranslations[1], cameraTranslations[2]);
 
-	//Rotation of both baby and uterus, so that the result is equivalent to a camera rotation in the opposite direction
-	glRotatef(uterusAngles[0], 1, 0, 0);
-	glRotatef(uterusAngles[1], 0, 1, 0);
-	glRotatef(uterusAngles[2], 0, 0, 1);
+	//Camera rotations
+	glRotatef(cameraAngles[0], 1, 0, 0);
+	glRotatef(cameraAngles[1], 0, 1, 0);
+	glRotatef(cameraAngles[2], 0, 0, 1);
 
-	//Push the current state of the matrix
+	//Pushes the current state of the matrix
 	glPushMatrix();
 
+	//Defines lights position according to the current state of the ModelView matrix, meaning that lights are
+	//fixed in world space and the camera is rotating around the scene. Thus the following baby rotations in
+	//baby model space won't affect light positionning in view space.
+	glUseProgram(babyShaderProgram);
 
-	//Baby translation
+	for (int i = 0; i != lightPositions.size(); i++) {
+
+		//OpenGL automatically transposes the light position in view space w.r.t. the current ModelView matrix
+		glLightfv(GL_LIGHT0+i, GL_POSITION, (GLfloat*)&lightPositions[i][0]);
+	}
+	
+	//Baby translations
 	glTranslatef(babyTranslations[0], babyTranslations[1], babyTranslations[2]);
 
-	//Baby rotation
+	//Baby rotations
 	glRotatef(babyAngles[0], 1, 0, 0);
 	glRotatef(babyAngles[1], 0, 1, 0);
 	glRotatef(babyAngles[2], 0, 0, 1);
@@ -311,9 +326,7 @@ void display() {
 	//**************//
 	// Baby drawing //
 	//**************//
-
-	glUseProgram(babyShaderProgram);
-
+	
 	glBegin(GL_TRIANGLES);
 
 	for (int i = 0; i != babyVertices.size(); i++) {
@@ -338,8 +351,17 @@ void display() {
 	//Uterus axis scaling
 	glScalef(18.0, 16.0, 16.0);
 		
+	//Defines lights position according to the current state of the ModelView matrix, meaning that lights are
+	//fixed in world space and the camera is rotating around the scene.
 	glUseProgram(uterusShaderProgram);
 
+	for (int i = 0; i != lightPositions.size(); i++) {
+
+		//OpenGL automatically transposes the light position in view space w.r.t. the current ModelView matrix
+		glLightfv(GL_LIGHT0+i, GL_POSITION, (GLfloat*)&lightPositions[i][0]);
+	}
+
+	
 	/////////////////////////
 	// Uterus caps drawing //
 	/////////////////////////
@@ -348,71 +370,71 @@ void display() {
 	
 		glBegin(GL_TRIANGLE_FAN);
 
-		//Takes value in [-1,1] to discribe lower and upper cap
-		float y = pow(-1, i); 
+		//Takes value in [-1,1] to describe lower and upper cap
+		float x = pow(-1, i); 
 
 		//All normals of the cap point outwards along the x-axis
-		vec3 normal = normalize(vec3(y, 0.0, 0.0));
+		vec3 normal = normalize(vec3(x, 0.0, 0.0));
 
 		//All tangents of the caps are perpendicular to both normals and z-axis
-		vec3 tangent = normalize(cross(normal, vec3(0.0, 0.0, 1.0)));
+		vec3 tangent = normalize(cross(normal, vec3(0.0, 0.0, -x*normalOrientation)));
 
 
 		// Cylinder half caps //
-		//Uterus body is made of a half cylinder and a bezier surface, so does the caps
-
+		
+		//Uterus body is made of a half cylinder and a bezier surface, so does the caps borders
 		glNormal3f(normal.x, normal.y, normal.z);
 
 		//Tangent is needed for bump mapping
 		glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
 
-		//Central pixel of the texture mapped on central point of the cap
+		//Central pixel of the texture is mapped on central point of the cap
 		glTexCoord2f(0.5, 0.5);  
-		glVertex3f(y, 0.0, 0.0);
+		glVertex3f(x, 0.0, 0.0);
 		
-		//Iterate on half of vertices of half the array
+		//Iterate on half of the vertices of half the array
 		for (int j = 0; j < uterusVertices.size()/4+2; j += 2) { 
 
 			//Upper and lower vertices are alternated
 			vec3 vertex = uterusVertices.at(2*j+i); 
-			vec2 textureCoordinates;
+			vec2 textureCoordinate;
 
 			//y and z vertices coordinates describe a circle of radius 1, so they can be used to define a circle
-			//on the texture to be mapped on the vertex. Radius in x direction need to be scaled because texture
+			//on the texture to be mapped on the vertex. Radius in s direction need to be scaled because texture
 			//width is greater than its height.
-			textureCoordinates.x = 0.5 + (36.0/(2*M_PI*16)) * 0.5 * vertex.y;
-			textureCoordinates.y = 0.5 + 0.5 * vertex.z;
+			textureCoordinate.s = 0.5 + (36.0/(2*M_PI*16)) * 0.5 * vertex.y;
+			textureCoordinate.t = 0.5 + 0.5 * vertex.z;
 
 			glNormal3f(normal.x, normal.y, normal.z);
 			glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
-			glTexCoord2f(textureCoordinates.s, textureCoordinates.t);
+			glTexCoord2f(textureCoordinate.s, textureCoordinate.t);
 			glVertex3f(vertex.x, vertex.y, vertex.z);
 		}
 
 		// Bezier half caps //
 
-		//Bezier points aRE redifined here because the caps don't move with the upper surface
-		vec3 point1 = vec3(y, 0.0, 1.0); 
-		vec3 point2 = vec3(y, 1.3333, 1.0);
-		vec3 point3 = vec3(y, 1.3333, -1.0);
-		vec3 point4 = vec3(y, 0.0, -1.0);
+		//Bezier points are redifined here because the caps don't move with the upper surface
+		vec3 point1 = vec3(x, 0.0, 1.0); 
+		vec3 point2 = vec3(x, 1.3333, 1.0);
+		vec3 point3 = vec3(x, 1.3333, -1.0);
+		vec3 point4 = vec3(x, 0.0, -1.0);
 
 		for (int j = 0; j != 101; j++) {
 
 			float u = j / 100.0f;
 			vec3 vertex = (-pow(u, 3) + 3*pow(u, 2) - 3*u + 1)*point1 + (3*pow(u, 3) - 6*pow(u, 2) + 3*u)*point2 + (-3*pow(u, 3) + 3*pow(u, 2))*point3 + pow(u, 3)*point4;
 
-			vec2 textureCoordinates;
+			vec2 textureCoordinate;
 
 			//y and z vertices coordinates describe a circle of radius 1, so they can be used to define a circle
-			//on the texture to be mapped on the vertex. Radius in x direction need to be scaled because texture
+			//on the texture to be mapped on the vertex. Radius in s direction need to be scaled because texture
 			//width is greater than its height.*/
-			textureCoordinates.x = 0.5 + (36.0/(2*M_PI*16)) * 0.5 * vertex.y;
-			textureCoordinates.y = 0.5 + 0.5 * vertex.z;
+			textureCoordinate.s = 0.5 + (36.0/(2*M_PI*16)) * 0.5 * vertex.y;
+			textureCoordinate.t = 0.5 + 0.5 * vertex.z;
 
 			glNormal3f(normal.x, normal.y, normal.z);
 			glVertexAttrib3fv(uterusTangent_GLSL, &tangent[0]);
-			glTexCoord2f(textureCoordinates.s, textureCoordinates.t);
+			glTexCoord2f(textureCoordinate.s, textureCoordinate.t);
 			glVertex3f(vertex.x, vertex.y, vertex.z);
 		}
 
@@ -545,7 +567,7 @@ void keyboardFunc(unsigned char key, int x, int y) {
 		break;
 
 
-	// Baby rotation //
+	// Baby rotations //
 
 	case 'x':
 		babyAngles[0] += 5;
@@ -572,38 +594,38 @@ void keyboardFunc(unsigned char key, int x, int y) {
 		break;
 
 
-	// Baby and uterus translation, equivalent to camera translation in the opposite direction //
+	// Camera translations //
 
 	case 'l':
-		uterusTranslations[0] += 2;
+		cameraTranslations[0] += 2;
 		break;
 
 	case 'L':
-		uterusTranslations[0] += 2;
+		cameraTranslations[0] += 2;
 		break;
 
 	case 'r':
-		uterusTranslations[0] -= 2;
+		cameraTranslations[0] -= 2;
 		break;
 
 	case 'R':
-		uterusTranslations[0] -= 2;
+		cameraTranslations[0] -= 2;
 		break;
 
 	case 'u':
-		uterusTranslations[1] -= 2;
+		cameraTranslations[1] -= 2;
 		break;
 
 	case 'U':
-		uterusTranslations[1] -= 2;
+		cameraTranslations[1] -= 2;
 		break;
 
 	case 'd':
-		uterusTranslations[1] += 2;
+		cameraTranslations[1] += 2;
 		break;
 
 	case 'D':
-		uterusTranslations[1] += 2;
+		cameraTranslations[1] += 2;
 		break;
 
 
@@ -611,15 +633,16 @@ void keyboardFunc(unsigned char key, int x, int y) {
 
 	case 'i':
 
-		cameraPosition[2] /= 1.1;
+		cameraTranslations[2] += 0.1*(15 - cameraTranslations[2]);
 
-		// Jumps from inside to outside the uterus, ensure the camera not to pass through the uterus border
-		if (cameraPosition[2] > 16.95 && cameraPosition[2] < 34) {
+		// Jumps from inside to outside the uterus, ensuring that the camera doesn't pass through the uterus border
+		if (cameraTranslations[2] < -1.85 && cameraTranslations[2] > -19) {
 
-			cameraPosition[2] = 16.95;
+			cameraTranslations[2] = -1.85;
 
 			//Inverse lighting
 			normalOrientation = -1;
+			glUseProgram(uterusShaderProgram);
 			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		}
 
@@ -627,15 +650,16 @@ void keyboardFunc(unsigned char key, int x, int y) {
 
 	case 'I':
 
-		cameraPosition[2] /= 1.1;
+		cameraTranslations[2] += 0.1*(15 - cameraTranslations[2]);
 
-		// Jumps from inside to outside the uterus, ensure the camera not to pass through the uterus border
-		if (cameraPosition[2] > 16.95 && cameraPosition[2] < 34) {
+		// Jumps from inside to outside the uterus, ensuring that camera doesn't pass through the uterus border
+		if (cameraTranslations[2] < -1.85 && cameraTranslations[2] > -19) {
 
-			cameraPosition[2] = 16.95;
+			cameraTranslations[2] = -1.85;
 
 			//Inverse lighting
 			normalOrientation = -1;
+			glUseProgram(uterusShaderProgram);
 			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		}
 
@@ -643,15 +667,16 @@ void keyboardFunc(unsigned char key, int x, int y) {
 
 	case 'o':
 
-		cameraPosition[2] *= 1.1;
+		cameraTranslations[2] -= 0.1*(15 - cameraTranslations[2]);
 
-		// Jumps from outside to inside the uterus, ensure the camera not to pass through the uterus border
-		if(cameraPosition[2] > 16.85 && cameraPosition[2] < 34) {
+		// Jumps from inside to outside the uterus, ensuring that the camera doesn't pass through the uterus border
+		if (cameraTranslations[2] < -1.85 && cameraTranslations[2] > -19) {
 
-			cameraPosition[2] = 34;
+			cameraTranslations[2] = -19;
 
 			//Inverse lighting
 			normalOrientation = 1;
+			glUseProgram(uterusShaderProgram);
 			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		}
 
@@ -659,45 +684,46 @@ void keyboardFunc(unsigned char key, int x, int y) {
 
 	case 'O':
 
-		cameraPosition[2] *= 1.1;
+		cameraTranslations[2] -= 0.1*(15 - cameraTranslations[2]);
 
-		// Jumps from outside to inside the uterus, ensure the camera not to pass through the uterus border
-		if (cameraPosition[2] > 16.85 && cameraPosition[2] < 34) {
+		// Jumps from inside to outside the uterus, ensuring that the camera doesn't pass through the uterus border
+		if (cameraTranslations[2] < -1.85 && cameraTranslations[2] > -19) {
 
-			cameraPosition[2] = 34;
+			cameraTranslations[2] = -19;
 
 			//Inverse lighting
 			normalOrientation = 1;
+			glUseProgram(uterusShaderProgram);
 			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		}
 
 		break;
 
 
-	//Baby and uterus rotation, equivalent to camera rotation in the opposite direction //
+	//Camera rotations //
 
 	case '1':
-		uterusAngles[0] -= 5;
+		cameraAngles[0] -= 5;
 		break;
 
 	case '3':
-		uterusAngles[0] += 5;
+		cameraAngles[0] += 5;
 		break;
 
 	case '4':
-		uterusAngles[1] -= 5;
+		cameraAngles[1] -= 5;
 		break;
 
 	case '6':
-		uterusAngles[1] += 5;
+		cameraAngles[1] += 5;
 		break;
 
 	case '7':
-		uterusAngles[2] -= 5;
+		cameraAngles[2] -= 5;
 		break;
 
 	case '9':
-		uterusAngles[2] += 5;
+		cameraAngles[2] += 5;
 		break;
 
 
@@ -712,7 +738,7 @@ void keyboardFunc(unsigned char key, int x, int y) {
 		break;
 
 
-	// Bezier //
+	// Cylinder opening //
 
 	case 'b':
 		
@@ -744,11 +770,13 @@ void keyboardFunc(unsigned char key, int x, int y) {
 
 	case 'n':
 		normalOrientation = -normalOrientation;
+		glUseProgram(uterusShaderProgram);
 		glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		break;
 
 	case 'N':
 		normalOrientation = -normalOrientation;
+		glUseProgram(uterusShaderProgram);
 		glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		break;
 
@@ -779,7 +807,7 @@ void mouseFunc(int button, int state, int x, int y) {
 
 			leftButtonPressed = true;
 
-			//x and y position are kept for camera trackball
+			//x and y position are stored for camera trackball
 			xOld = x;
 			yOld = y;
 		}
@@ -804,15 +832,16 @@ void mouseFunc(int button, int state, int x, int y) {
 
 	else if (button == GLUT_WHEEL_UP) {
 	
-		cameraPosition[2] /= 1.1;
+		cameraTranslations[2] += 0.1*(15 - cameraTranslations[2]);
+	
+		// Jumps from inside to outside the uterus, ensuring that the camera doesn't pass through the uterus border
+		if (cameraTranslations[2] < -1.85 && cameraTranslations[2] > -19) {
 
-		// Jumps from inside to outside the uterus, ensure the camera not to pass through the uterus border
-		if (cameraPosition[2] > 16.85 && cameraPosition[2] < 34) {
-
-			cameraPosition[2] = 16.85;
+			cameraTranslations[2] = -1.85;
 
 			//Inverse lighting
 			normalOrientation = -1;
+			glUseProgram(uterusShaderProgram);
 			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		}
 
@@ -821,15 +850,16 @@ void mouseFunc(int button, int state, int x, int y) {
 
 	else if (button == GLUT_WHEEL_DOWN) {
 
-		cameraPosition[2] *= 1.1;
+		cameraTranslations[2] -= 0.1*(15 - cameraTranslations[2]);
 
-		// Jumps from outside to inside the uterus, ensure the camera not to pass through the uterus border
-		if (cameraPosition[2] > 16.85 && cameraPosition[2] < 34) {
+		// Jumps from inside to outside the uterus, ensuring that the camera doesn't pass through the uterus border
+		if (cameraTranslations[2] < -1.85 && cameraTranslations[2] > -19) {
 
-			cameraPosition[2] = 34;
+			cameraTranslations[2] = -19;
 
 			//Inverse lighting
 			normalOrientation = 1;
+			glUseProgram(uterusShaderProgram);
 			glUniform1i(uterusNormalOrientation_GLSL, normalOrientation);
 		}
 
@@ -849,8 +879,8 @@ void motionFunc(int x, int y) {
 
 		if (leftButtonPressed) {
 
-			uterusAngles[1] += 0.5*deltaX;
-			uterusAngles[0] += 0.5*deltaY;
+			cameraAngles[1] += 0.5*deltaX;
+			cameraAngles[0] += 0.5*deltaY;
 		}
 
 		else if (rightButtonPressed) {
@@ -907,7 +937,7 @@ int main(int argc, char *argv[]) {
 	glutMouseFunc(mouseFunc);
 	glutMotionFunc(motionFunc);
 
-	//Glut maint loop
+	//Glut main loop
 	glutMainLoop();
 	
 	return 0;
@@ -916,14 +946,14 @@ int main(int argc, char *argv[]) {
 
 void animate() {
 
-	/* Animation function. 
+	/* Animation function
 	
 	  The complete animation is divided into scenes of a given number of frames. A scene x begins with some 
 	  rendering variables initialization whose values are stored in parameters[x][0] to parameters[x][5], 
 	  allowing for example to change view point between scenes. Then, for each of the parameters[x][6] frames 
 	  of the scene, some rendering variables are incremented by a constant value, stored in parameters[x][7] 
 	  to parameters[x][14] and the display function is called. The complete rendering time of the frame is
-	  measured and the thread finally sleeps for ((1/framerate)-rendeging time) s to ensure the frame rate */
+	  measured and the thread finally sleeps for ((1/framerate)-rendering time) s to ensure the frame rate */
 
 	int frameRate = 80;
 	int frameDuration = (1.0 / frameRate) * 1000000000;
@@ -933,52 +963,52 @@ void animate() {
 
 	float parameters[13][15] = { 
 
-        //   0	    1      2    3      4      5         6     7       8      9   10     11            12            13       14
-		{  0.0,   0.0,   1.0, 0.35, 70.0, 125.0,    100.0,  0.0,    0.0,   0.0, 0.0,   0.0,          0.0,          0.0,    -0.25   },
-		{  0.0,   0.0,   1.0, 0.35, 70.0,  70.0,    100.0,  0.0,    0.0,   0.0, 0.0,   0.0,          0.0,          0.0,    -0.25   },
-		{  0.0,  -90.0, -1.0, 0.35, 75.0,  16.85,   900.0, -0.1,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0,    -0.002  },
-		{  0.0, -180.0, -1.0, 0.35, 75.0,  15.0497, 350.0,  0.0,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0,     0.0    },
-		{  0.0, -180.0, -1.0, 0.35, 75.0,  15.0497, 150.0,  0.0,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0032,  0.0    },
-		{ 30.0,    0.0, -1.0, 0.35, 70.0,  70.0,    160.0,  0.0,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0032, -0.0625 },
-		{ 30.0,    0.0, -1.0, 0.35, 70.0,  60.0,    160.0,  0.0,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0,    -0.0625 },
-		{ 30.0,    0.0, -1.0, 0.35, 70.0,  50.0,    300.0,  0.0,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0,     0.0    },
-		{ 30.0,    0.0, -1.0, 0.35, 70.0,  50.0,     20.0,  0.0,    0.0,   0.0, 0.0,   0.0,          0.0,          0.0,     0.0    },
-		{ 30.0,    0.0, -1.0, 0.35, 70.0,  50.0,    150.0,  0.0,    0.2,   0.6, 0.0,   0.0,          0.0,          0.0,     0.0    },
-		{ 30.0,    0.0, -1.0, 0.35, 70.0,  50.0,    100.0,  0.0,    0.0,   0.0, 0.0,   0.1*cosf(45), 0.1*sinf(45), 0.0,     0.0    },
-		{ 15.0,  -75.0,  1.0, 0.15, 25.0, 130.0,    100.0,  0.0,    0.0,   0.0, 0.0,   0.1*cosf(45), 0.1*sinf(45), 0.0,     0.0    },
-		{ 15.0,  -75.0,  1.0, 0.15, 25.0, 130.0,    200.0,  0.375, -0.15, -0.9, 0.0,   0.0,          0.0,          0.0,     0.0    }
+        //   0	    1      2    3      4      5       6     7       8      9   10     11            12            13      14
+		{  0.0,   0.0,   1.0, 0.35, 70.0, -110.0,  100.0,  0.0,    0.0,   0.0, 0.0,   0.0,          0.0,          0.0,    0.25   },
+		{  0.0,   0.0,   1.0, 0.35, 70.0,  -55.0,  100.0,  0.0,    0.0,   0.0, 0.0,   0.0,          0.0,          0.0,    0.25   },
+		{  0.0,  -90.0, -1.0, 0.35, 75.0,   -1.85, 900.0, -0.1,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0,    0.002  },
+		{  0.0, -180.0, -1.0, 0.35, 75.0,   -0.05, 350.0,  0.0,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0,    0.0    },
+		{  0.0, -180.0, -1.0, 0.35, 75.0,   -0.05, 150.0,  0.0,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0032, 0.0    },
+		{ 30.0,    0.0, -1.0, 0.35, 70.0,  -55.0,  160.0,  0.0,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0032, 0.0625 },
+		{ 30.0,    0.0, -1.0, 0.35, 70.0,  -45.0,  160.0,  0.0,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0,    0.0625 },
+		{ 30.0,    0.0, -1.0, 0.35, 70.0,  -35.0,  300.0,  0.0,    0.0,   0.0, 0.375, 0.0,          0.0,          0.0,    0.0    },
+		{ 30.0,    0.0, -1.0, 0.35, 70.0,  -35.0,   20.0,  0.0,    0.0,   0.0, 0.0,   0.0,          0.0,          0.0,    0.0    },
+		{ 30.0,    0.0, -1.0, 0.35, 70.0,  -35.0,  150.0,  0.0,    0.2,   0.6, 0.0,   0.0,          0.0,          0.0,    0.0    },
+		{ 30.0,    0.0, -1.0, 0.35, 70.0,  -35.0,  100.0,  0.0,    0.0,   0.0, 0.0,   0.1*cosf(45), 0.1*sinf(45), 0.0,    0.0    },
+		{ 15.0,  -75.0, -1.0, 0.20, 25.0, -115.0,  100.0,  0.0,    0.0,   0.0, 0.0,   0.1*cosf(45), 0.1*sinf(45), 0.0,    0.0    },
+		{ 15.0,  -75.0, -1.0, 0.20, 25.0, -115.0,  200.0,  0.375, -0.15, -0.9, 0.0,   0.0,          0.0,          0.0,    0.0    }
 	
 	};
 
 	for (float* p : parameters) {
 		
 		//Allows view point change
-		uterusAngles[0] = p[0];
-		uterusAngles[1] = p[1];
+		cameraAngles[0] = p[0];
+		cameraAngles[1] = p[1];
 		
-		//Normal orientation modification to switch lighting form inside to outside the uterus
+		//Normal orientation modification to switch lighting from inside to outside the uterus
 		glUseProgram(uterusShaderProgram);
 		glUniform1i(uterusNormalOrientation_GLSL, (int)p[2]);
 
-		//No texture reflection anymore when the baby is out of the uterus
+		//Texture reflection is attenuated when the baby is out of the uterus
 		glUseProgram(babyShaderProgram);
 		glUniform1f(babyReflection_GLSL, p[3]);
 
-		//Field of view correction to avoid/create distortion
+		//Field of view correction to avoid/create artistic distortion
 		fovy = p[4];
 
 		//Setting initial scene zoom
-		cameraPosition[2] = p[5];
+		cameraTranslations[2] = p[5];
 		
 		for (int i = 0; i != p[6]; i++) {
 
 			//Tick
 			auto start = chrono::high_resolution_clock::now();
 			
-			//Baby and uterus rotation
-			uterusAngles[1] += p[7];
+			//Camera rotations
+			cameraAngles[1] += p[7];
 
-			//Baby rotation 
+			//Baby rotations
 			babyAngles[0] += p[8];
 			babyAngles[1] += p[9];
 			babyAngles[2] += p[10] * babyRotationDirection;
@@ -989,7 +1019,7 @@ void animate() {
 				babyRotationDirection = -babyRotationDirection; 
 			}
 
-			//Baby translation
+			//Baby translations
 			babyTranslations[1] += p[11];
 			babyTranslations[2] += p[12];
 
@@ -998,14 +1028,14 @@ void animate() {
 			bezierPoints[0] = vec3(0.0, 0.0, 1.0)*(1.0f - t) + vec3(0.0, 0.85, 0.0)*t; 
 
 			//Zoom in/out
-			cameraPosition[2] += p[14];
+			cameraTranslations[2] += p[14];
 
 			display();
 
 			//Tock
 			auto stop = chrono::high_resolution_clock::now();
 
-			//Sleep for ((1/framerate)-rendeging time) s to ensure the frame rate
+			//Sleep for ((1/framerate)-rendering time) s to ensure the frame rate
 			this_thread::sleep_for(std::chrono::nanoseconds(frameDuration - std::chrono::duration<int, std::nano>(stop - start).count()));
 		}
 	}

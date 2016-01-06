@@ -16,7 +16,12 @@ struct material
 	float silhouettePow;
 };
 
-const material wax = material(vec4(0.964705, 0.670588, 0.556862, 1.0), 0.78f, 0.8f, 0.4f, 0.9f, 165.0f, 0.8f, 3.0f);
+const material wax = material(vec4(0.964705, 0.670588, 0.556862, 1.0), 2.5f, 1.5f, 0.45f, 0.9f, 128.0f, 0.75f, 3.0f);
+const material wax2 = material(vec4(0.964705, 0.670588, 0.556862, 1.0), 2.0f, 2.5f, 0.25f, 0.9f, 128.0f, 0.75f, 3.0f);
+const material wax3 = material(vec4(0.964705, 0.670588, 0.556862, 1.0), 0.78f, 0.8f, 0.4f, 0.9f, 165.0f, 0.8f, 3.0f);
+const material skin = material(vec4(0.964705, 0.670588, 0.556862, 1.0), 1.25f, 1.0f, 1.25f, 0.15f, 32.0f, 0.0f, 1.0f);
+const material skin2 = material(vec4(0.964705, 0.670588, 0.556862, 1.0), 1.75f, 1.5f, 1.20f, 0.15f, 64.0f, 0.0f, 1.0f);
+const material rubber = material(vec4(0.964705, 0.670588, 0.556862, 1.0), 2.15f, 1.0f, 1.0f, 0.25f, 128.0f, 0.5f, 1.0f);
 
 
 void main() {
@@ -36,7 +41,7 @@ void main() {
 	//**********//
 
 	material material;
-	material = wax;
+	material = wax3;
 
 		
 	//*******//

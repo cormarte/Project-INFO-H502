@@ -1,6 +1,7 @@
 varying vec3 vNormal;
-varying vec3 vLightVector;
+varying vec3 vLightVectors[3];
 varying vec3 vViewVector;
+
 
 void main() {
 
@@ -10,10 +11,14 @@ void main() {
 	//Vertex position in view space
 	vec3 vertexPosition = vec3(gl_ModelViewMatrix * gl_Vertex);
 	
-	//Light vector in view space. gl_LightSource[x] are already defined in view space
-	vLightVector = normalize(vec3(gl_LightSource[0].position) - vertexPosition);
+	for (int i=0; i!=vLightVectors.length(); i++) {
+	
+		//Light vector in view space. gl_LightSource[0].position is already defined in view space,
+		//so it doesn't has to be multiplied by gl_ModelViewMatrix.
+		vLightVectors[i] = normalize(vec3(gl_LightSource[0].position) - vertexPosition);
+	};
 
-	//View vector in view space. Camera is at (0.0, 0.0, 0.0) in view space
+	//View vector in view space. Camera is at (0.0, 0.0, 0.0) in view space.
 	vViewVector = normalize(-vertexPosition);
 
 	gl_Position = ftransform();
